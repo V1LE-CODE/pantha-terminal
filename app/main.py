@@ -1,5 +1,6 @@
 import sys
 import asyncio
+import traceback
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -12,7 +13,11 @@ from app.commands import run_command
 
 
 def get_css_path() -> str:
-    """CSS path that works in normal runs + PyInstaller EXE."""
+    """
+    CSS path that works in:
+    - normal python runs
+    - PyInstaller onefile EXE runs
+    """
     if hasattr(sys, "_MEIPASS"):
         base = Path(sys._MEIPASS)
         return str(base / "styles.tcss")
@@ -39,21 +44,19 @@ class PanthaTerminal(App):
         self.glow_state = 0
         self.glow_timer: Timer | None = None
 
-        self.showing_splash = True
-
     def compose(self) -> ComposeResult:
-        # OUTER glow frame
+        # Outer glow frame (pulses)
         with Vertical(id="outer_frame", classes="glow1"):
-            # INNER frame (real UI)
+            # Inner frame (actual UI)
             with Vertical(id="inner_frame"):
                 yield Static("💜 PANTHA TERMINAL 💜", id="header")
 
-                # Splash screen container (we will hide later)
+                # Splash (will hide after boot)
                 with Vertical(id="splash_box"):
                     yield Static(PANTHA_LOGO, id="splash_logo")
-                    yield Static("Loading neon systems...", id="splash_text")
+                    yield Static("Booting Pantha systems...", id="splash_text")
 
-                # Main output + input (hidden during splash)
+                # Main UI (hidden during splash)
                 self.output = RichLog(id="output", wrap=True, highlight=True, markup=True)
                 yield self.output
 
@@ -63,18 +66,19 @@ class PanthaTerminal(App):
 
     async def on_mount(self) -> None:
         # Start glow pulse
-        self.glow_timer = self.set_interval(0.30, self.pulse_glow)
+        self.glow_timer = self.set_interval(0.28, self.pulse_glow)
 
-        # Hide main UI first (until splash done)
+        # Hide main UI during splash
         self.output.display = False
         self.query_one("#inputbar").display = False
 
-        # Run splash animation then reveal UI
-        await self.run_splash()
+        # Run splash boot sequence
+        await self.splash_sequence()
 
+        # Reveal main UI
+        self.query_one("#splash_box").display = False
         self.output.display = True
         self.query_one("#inputbar").display = True
-        self.query_one("#splash_box").display = False
 
         self.output.write("[bold bright_magenta]Welcome to Pantha Terminal.[/]")
         self.output.write("[magenta]Type 'help' to see available commands.[/]")
@@ -84,18 +88,19 @@ class PanthaTerminal(App):
 
         self.query_one("#command_input", Input).focus()
 
-    async def run_splash(self) -> None:
+    async def splash_sequence(self) -> None:
         splash_text = self.query_one("#splash_text", Static)
 
         steps = [
-            "Loading neon systems...",
-            "Charging purple glow core...",
-            "Linking Pantha interface...",
-            "Boot complete. Welcome 💜",
+            "Booting Pantha systems...",
+            "Charging neon glow core...",
+            "Linking terminal interface...",
+            "Loading command modules...",
+            "Boot complete 💜",
         ]
 
-        for s in steps:
-            splash_text.update(s)
+        for step in steps:
+            splash_text.update(step)
             await asyncio.sleep(0.55)
 
     def pulse_glow(self) -> None:
@@ -135,5 +140,15 @@ class PanthaTerminal(App):
             await self.action_quit()
 
 
+def main():
+    try:
+        PanthaTerminal().run()
+    except Exception:
+        # If it crashes in EXE, show the error instead of closing instantly
+        print("\n🔥 Pantha Terminal crashed!\n")
+        print(traceback.format_exc())
+        input("\nPress ENTER to close...")
+
+
 if __name__ == "__main__":
-    PanthaTerminal().run()
+    main()
