@@ -21,22 +21,20 @@ SetupIconFile=assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 WizardStyle=modern
-
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 
 [Files]
-; The built EXE will be copied here by GitHub Actions before compiling installer
+; This MUST exist after PyInstaller runs
 Source: "dist\PanthaTerminal.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
 
 [Icons]
 Name: "{group}\Pantha Terminal"; Filename: "{app}\{#MyAppExeName}"
 Name: "{commondesktop}\Pantha Terminal"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
-[Tasks]
-Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
-
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch Pantha Terminal"; Flags: nowait postinstall skipifsilent
-
