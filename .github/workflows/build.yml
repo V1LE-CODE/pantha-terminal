@@ -62,12 +62,12 @@ jobs:
       - name: Build PanthaTerminal (Windows)
         if: runner.os == 'Windows'
         run: |
-          pyinstaller --noconfirm --clean --name "PanthaTerminal" --onefile --windowed --icon "assets/icon.ico" --add-data "app/styles.tcss;app" --add-data "assets/icon.ico;assets" app/main.py
+          pyinstaller --noconfirm --clean --name "PanthaTerminal" --onefile --windowed --icon "assets/icon.ico" --add-data "app/styles.tcss;app" app/main.py
 
       - name: Build PanthaTerminal (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
-          pyinstaller --noconfirm --clean --name "PanthaTerminal" --onefile --add-data "app/styles.tcss:app" --add-data "assets/icon.ico:assets" app/main.py
+          pyinstaller --noconfirm --clean --name "PanthaTerminal" --onefile --add-data "app/styles.tcss:app" app/main.py
 
       - name: Upload PanthaTerminal build
         uses: actions/upload-artifact@v4
@@ -98,18 +98,24 @@ jobs:
 
       - name: Build PanthaTerminal.exe (for installer)
         run: |
-          pyinstaller --noconfirm --clean --name "PanthaTerminal" --onefile --windowed --icon "assets/icon.ico" --add-data "app/styles.tcss;app" --add-data "assets/icon.ico;assets" app/main.py
+          pyinstaller --noconfirm --clean --name "PanthaTerminal" --onefile --windowed --icon "assets/icon.ico" --add-data "app/styles.tcss;app" app/main.py
 
-      - name: Debug paths before installer
+      - name: Ensure installer output folder exists
+        run: |
+          if (!(Test-Path "installer_output")) { New-Item -ItemType Directory -Path "installer_output" }
+
+      - name: Debug dist + assets + installer folders
         run: |
           echo "=== ROOT ==="
           dir
-          echo "=== ASSETS ==="
-          dir assets
           echo "=== DIST ==="
           dir dist
+          echo "=== ASSETS ==="
+          dir assets
           echo "=== INSTALLER ==="
           dir installer
+          echo "=== INSTALLER_OUTPUT ==="
+          dir installer_output
 
       - name: Install Inno Setup
         run: |
