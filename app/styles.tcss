@@ -1,94 +1,91 @@
 /* =========================================================
    PANTHA TERMINAL 💜
-   Ultra Neon Purple Glow Theme (Textual / TCSS)
+   Ultra Neon Purple Glow + Aesthetic UI
    ========================================================= */
 
 Screen {
-    background: #05010a;
+    background: #040008;
 }
 
-/* OUTER frame = "glow aura" */
+/* OUTER glow aura frame */
 #outer_frame {
     width: 100%;
     height: 100%;
     padding: 1 2;
 
-    background: #05010a;
+    background: #040008;
+
+    /* default border (will pulse via classes) */
     border: heavy #ff2dff;
 }
 
-/* INNER frame = main terminal container */
+/* INNER main terminal frame */
 #inner_frame {
     width: 100%;
     height: 100%;
     padding: 1 2;
 
-    background: #0b0213;
+    background: #090012;
     border: round #7a00ff;
 }
 
-/* Pulse states (we apply to outer_frame to fake glow) */
-.glow1 {
-    border: heavy #ff2dff;
-}
+/* Pulse states (outer border changes to simulate glow) */
+.glow1 { border: heavy #ff3cff; }
+.glow2 { border: heavy #c400ff; }
+.glow3 { border: heavy #7a00ff; }
 
-.glow2 {
-    border: heavy #c400ff;
-}
-
-.glow3 {
-    border: heavy #7a00ff;
-}
-
-/* Header title */
+/* Header */
 #header {
     height: 3;
     content-align: center middle;
 
-    background: #090012;
-    border: round #5c00b8;
-
-    color: #ff66ff;
-    text-style: bold;
-}
-
-/* Splash screen box */
-#splash_box {
-    height: 1fr;
-    content-align: center middle;
-
     background: #07000f;
-    border: round #6f00ff;
-}
+    border: round #5b00b8;
 
-/* Splash logo */
-#splash_logo {
-    color: #ff66ff;
+    color: #ff7bff;
     text-style: bold;
 }
 
-/* Splash loading text */
-#splash_text {
-    color: #cda3ff;
-}
-
-/* Output log area */
-#output {
+/* Splash container */
+#splash_box {
     height: 1fr;
     padding: 1 2;
 
     background: #07000f;
     border: round #6f00ff;
 
+    content-align: center middle;
+}
+
+/* ASCII logo */
+#splash_logo {
+    color: #ff3cff;
+    text-style: bold;
+}
+
+/* Splash status text */
+#splash_text {
+    color: #d7b3ff;
+    text-style: italic;
+}
+
+/* Output area */
+#output {
+    height: 1fr;
+    padding: 1 2;
+
+    background: #06000d;
+    border: round #6f00ff;
+
     color: #f5e6ff;
 }
 
-/* Input bar container */
+/* Input bar */
 #inputbar {
     height: 3;
     padding: 0 1;
 
-    background: #07000f;
+    background: #06000d;
     border: round #6f00ff;
 }
 
@@ -97,37 +94,37 @@ Screen {
     width: 10;
     content-align: left middle;
 
-    color: #ff66ff;
+    color: #ff7bff;
     text-style: bold;
 }
 
-/* Input widget */
+/* Input field */
 Input {
     width: 1fr;
     height: 1;
 
-    background: #12001f;
+    background: #140020;
     color: #ffffff;
 
     border: none;
 }
 
 Input:focus {
-    background: #18002a;
+    background: #1b002b;
 }
 
 /* Placeholder text */
 Input.-placeholder {
-    color: #9b7bbd;
+    color: #a88ac8;
 }
 
 /* Scrollbar glow */
 RichLog {
     scrollbar-color: #b300ff;
-    scrollbar-color-hover: #ff2dff;
+    scrollbar-color-hover: #ff3cff;
 }
 
-/* spacing */
-#header, #output, #inputbar, #splash_box {
+/* Nice spacing */
+#header, #splash_box, #output, #inputbar {
     margin: 0 0 1 0;
 }
