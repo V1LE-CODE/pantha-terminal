@@ -34,7 +34,10 @@ jobs:
           python -c "from app.main import PanthaTerminal; print('Pantha import OK')"
 
 
-  build_windows_installer:
+  # ==========================
+  # WINDOWS INSTALLER (EXE)
+  # ==========================
+  build_windows_setup:
     name: Build Windows Setup (EXE Installer)
     runs-on: windows-latest
     needs: test
@@ -54,6 +57,8 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      # IMPORTANT:
+      # We build a FOLDER app (not onefile) so the installer always works.
       - name: Build PanthaTerminal (Windows folder build)
         run: |
           pyinstaller --noconfirm --clean ^
@@ -67,10 +72,6 @@ jobs:
         run: |
           choco install innosetup -y
 
-      - name: Ensure installer output folder exists
-        run: |
-          if (!(Test-Path "installer_output")) { New-Item -ItemType Directory -Path "installer_output" }
-
       - name: Compile Windows Installer
         run: |
           iscc installer\pantha_setup.iss
@@ -82,6 +83,9 @@ jobs:
           path: installer_output/*
 
 
+  # ==========================
+  # LINUX INSTALLER (AppImage)
+  # ==========================
   build_linux_appimage:
     name: Build Linux AppImage
     runs-on: ubuntu-latest
@@ -96,13 +100,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install deps + PyInstaller
+      - name: Install deps + PyInstaller + Pillow
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller pillow
 
-      - name: Build PanthaTerminal (Linux)
+      - name: Build PanthaTerminal (Linux onefile)
         run: |
           pyinstaller --noconfirm --clean \
             --name "PanthaTerminal" \
@@ -115,57 +119,54 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libfuse2 wget
 
-      - name: Build AppDir + AppImage (with icon from .ico)
+      - name: Make AppImage
         run: |
           rm -rf AppDir
           mkdir -p AppDir/usr/bin
 
-          # Put binary in AppDir
+          # Put binary into AppDir
           cp dist/PanthaTerminal AppDir/usr/bin/PanthaTerminal
           chmod +x AppDir/usr/bin/PanthaTerminal
 
-          # AppRun (required in ROOT)
+          # AppRun MUST be in root
           cat > AppDir/AppRun <<'EOF'
           #!/bin/sh
           exec "$(dirname "$0")/usr/bin/PanthaTerminal" "$@"
           EOF
           chmod +x AppDir/AppRun
 
-          # Desktop file MUST be in ROOT of AppDir
+          # Desktop file MUST exist in root or appimagetool fails
           cat > AppDir/pantha-terminal.desktop <<'EOF'
           [Desktop Entry]
           Type=Application
           Name=Pantha Terminal
-          Comment=Pantha Terminal Application
+          Comment=Purple glowing terminal
           Exec=PanthaTerminal
           Icon=pantha-terminal
           Categories=Utility;TerminalEmulator;
           Terminal=false
           EOF
 
-          # Convert assets/icon.ico -> AppDir/pantha-terminal.png (AppImage expects PNG)
+          # Convert icon.ico -> pantha-terminal.png (AppImage wants PNG)
           python - <<'PY'
 from PIL import Image
-import os
-
 ico_path = "assets/icon.ico"
 out_path = "AppDir/pantha-terminal.png"
 
 img = Image.open(ico_path)
 
-# ICO may contain multiple sizes; pick the biggest
-sizes = []
+frames = []
 try:
-    for frame in range(getattr(img, "n_frames", 1)):
-        img.seek(frame)
-        sizes.append((img.size[0]*img.size[1], img.size, img.copy()))
+    for i in range(img.n_frames):
+        img.seek(i)
+        frames.append((img.size[0]*img.size[1], img.copy()))
 except Exception:
-    sizes.append((img.size[0]*img.size[1], img.size, img.copy()))
+    frames.append((img.size[0]*img.size[1], img.copy()))
 
-best = sorted(sizes, key=lambda x: x[0], reverse=True)[0][2].convert("RGBA")
+best = sorted(frames, key=lambda x: x[0], reverse=True)[0][1].convert("RGBA")
 best = best.resize((256, 256))
 best.save(out_path, format="PNG")
-print("Saved:", out_path)
+print("Saved icon:", out_path)
 PY
 
           # Download appimagetool
@@ -182,8 +183,11 @@ PY
           path: PanthaTerminal-Linux.AppImage
 
 
+  # ==========================
+  # macOS INSTALLER (DMG)
+  # ==========================
   build_macos_dmg:
-    name: Build macOS DMG (Signed if secrets exist)
+    name: Build macOS DMG
     runs-on: macos-latest
     needs: test
 
@@ -202,26 +206,13 @@ PY
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build PanthaTerminal (macOS)
+      - name: Build PanthaTerminal (macOS app)
         run: |
           pyinstaller --noconfirm --clean \
             --name "PanthaTerminal" \
             --windowed \
             --add-data "app/styles.tcss:app" \
             app/main.py
-
-      # Optional signing (won't fail if secrets not present)
-      - name: Codesign app (optional)
-        env:
-          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
-        run: |
-          if [ -z "$MACOS_SIGN_IDENTITY" ]; then
-            echo "No signing identity secret found, skipping codesign."
-            exit 0
-          fi
-
-          echo "Signing with: $MACOS_SIGN_IDENTITY"
-          codesign --force --deep --timestamp --options runtime --sign "$MACOS_SIGN_IDENTITY" "dist/PanthaTerminal.app"
 
       - name: Create DMG
         run: |
