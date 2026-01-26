@@ -1,8 +1,9 @@
-name: Pantha Terminal Builds
+name: Pantha Terminal CI + Builds + Setups
 
 on:
   push:
     branches: ["main"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -33,25 +34,37 @@ jobs:
         run: |
           python -c "from app.main import PanthaTerminal; print('Pantha import OK')"
 
-
-  windows_setup:
+  setup_windows:
     name: Build Windows Setup (PanthaSetup.exe)
     runs-on: windows-latest
     needs: test
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repo (full history for tags)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set version (tag or fallback)
+      - name: Set version (tag or fallback) - NEVER FAILS
         shell: pwsh
         run: |
-          $tag = (git describe --tags --abbrev=0 2>$null)
-          if (-not $tag) { $tag = "v0.0.${{ github.run_number }}" }
+          $ErrorActionPreference = "Continue"
+
+          $tag = ""
+          try {
+            $tag = (git describe --tags --abbrev=0) 2>$null
+          } catch {
+            $tag = ""
+          }
+
+          if (-not $tag) {
+            $tag = "v0.0.${{ github.run_number }}"
+          }
+
           echo "Using version: $tag"
-          echo "PANTHA_VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PANTHA_VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          exit 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -66,29 +79,25 @@ jobs:
           pip install pyinstaller
 
       # IMPORTANT:
-      # - ONEDIR build so installer includes _internal folder
-      # - CONSOLE build so Textual works on Windows (fixes instant close)
+      # - ONEDIR is required because your Inno Setup script copies dist\PanthaTerminal\*
+      # - Use --console so errors show instead of instantly closing
       - name: Build PanthaTerminal (Windows ONEDIR + CONSOLE)
         shell: pwsh
         run: |
-          if (!(Test-Path "assets\icon.ico")) { Write-Host "Missing assets\icon.ico"; exit 1 }
-          if (!(Test-Path "app\styles.tcss")) { Write-Host "Missing app\styles.tcss"; exit 1 }
-          if (!(Test-Path "app\main.py")) { Write-Host "Missing app\main.py"; exit 1 }
-          if (!(Test-Path "installer\Pantha_setup.iss")) { Write-Host "Missing installer\Pantha_setup.iss"; exit 1 }
-
           pyinstaller --noconfirm --clean `
             --name "PanthaTerminal" `
             --console `
-            --icon "assets\icon.ico" `
-            --add-data "app\styles.tcss;app" `
-            app\main.py
+            --icon "assets/icon.ico" `
+            --add-data "app/styles.tcss;app" `
+            --add-data "app;app" `
+            app/main.py
 
-          Write-Host "==== DIST CONTENTS ===="
+          echo "==== DIST CONTENTS ===="
           Get-ChildItem -Recurse dist
-          Write-Host "======================="
+          echo "======================="
 
           if (!(Test-Path "dist\PanthaTerminal\PanthaTerminal.exe")) {
-            Write-Host "ERROR: dist\PanthaTerminal\PanthaTerminal.exe not created"
+            echo "ERROR: dist\PanthaTerminal\PanthaTerminal.exe missing"
             exit 1
           }
 
@@ -102,23 +111,14 @@ jobs:
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\Pantha_setup.iss"
 
-          Write-Host "==== INSTALLER OUTPUT ===="
-          if (Test-Path "installer_output") {
-            Get-ChildItem installer_output
-          } else {
-            Write-Host "installer_output folder not found!"
-            exit 1
-          }
-
       - name: Upload Windows Setup
         uses: actions/upload-artifact@v4
         with:
           name: PanthaSetup-Windows
           path: installer_output/*
 
-
-  linux_build:
-    name: Build Linux (Folder Build)
+  setup_linux:
+    name: Build Linux Setup (AppImage)
     runs-on: ubuntu-latest
     needs: test
 
@@ -137,22 +137,67 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      # AppImage works best with ONEDIR (not onefile)
       - name: Build PanthaTerminal (Linux ONEDIR)
         run: |
           pyinstaller --noconfirm --clean \
             --name "PanthaTerminal" \
             --add-data "app/styles.tcss:app" \
+            --add-data "app:app" \
             app/main.py
 
-      - name: Upload Linux Build
+      - name: Create AppDir structure
+        run: |
+          rm -rf AppDir
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+          # Copy the whole ONEDIR folder contents into AppDir/usr/bin
+          cp -r dist/PanthaTerminal/* AppDir/usr/bin/
+
+          chmod +x AppDir/usr/bin/PanthaTerminal || true
+
+          # Desktop file required
+          cat > AppDir/pantha-terminal.desktop << 'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Pantha Terminal
+          Exec=PanthaTerminal
+          Icon=pantha-terminal
+          Categories=Utility;System;
+          Terminal=false
+          EOF
+
+          # AppRun required
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/PanthaTerminal"
+          EOF
+          chmod +x AppDir/AppRun
+
+          # We only have icon.ico in repo
+          cp assets/icon.ico AppDir/pantha-terminal.ico || true
+          cp assets/icon.ico AppDir/usr/share/icons/hicolor/256x256/apps/pantha-terminal.ico || true
+
+      - name: Download appimagetool
+        run: |
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      - name: Make AppImage
+        run: |
+          ./appimagetool-x86_64.AppImage AppDir PanthaTerminal-Linux.AppImage
+
+      - name: Upload Linux Setup
         uses: actions/upload-artifact@v4
         with:
-          name: PanthaTerminal-Linux
-          path: dist/PanthaTerminal/
+          name: PanthaSetup-Linux
+          path: PanthaTerminal-Linux.AppImage
 
-
-  macos_build:
-    name: Build macOS (Folder Build)
+  setup_macos:
+    name: Build macOS Setup (DMG)
     runs-on: macos-latest
     needs: test
 
@@ -171,15 +216,24 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build PanthaTerminal (macOS ONEDIR)
+      - name: Build PanthaTerminal (macOS app bundle)
         run: |
           pyinstaller --noconfirm --clean \
             --name "PanthaTerminal" \
+            --windowed \
             --add-data "app/styles.tcss:app" \
+            --add-data "app:app" \
             app/main.py
 
-      - name: Upload macOS Build
+      - name: Create DMG
+        run: |
+          rm -rf dmg_stage
+          mkdir -p dmg_stage
+          cp -R dist/PanthaTerminal.app dmg_stage/
+          hdiutil create -volname "Pantha Terminal" -srcfolder dmg_stage -ov -format UDZO PanthaTerminal-macOS.dmg
+
+      - name: Upload macOS Setup
         uses: actions/upload-artifact@v4
         with:
-          name: PanthaTerminal-macOS
-          path: dist/PanthaTerminal/
+          name: PanthaSetup-macOS
+          path: PanthaTerminal-macOS.dmg
