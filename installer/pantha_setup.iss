@@ -28,6 +28,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 
+; ICONS / LOOK
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
@@ -52,7 +53,7 @@ Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: 
 Name: "addtopath"; Description: "Add Pantha Terminal to PATH (recommended)"; Flags: unchecked
 
 [Files]
-; Install the entire PyInstaller folder output (exe + _internal)
+; Install the whole PyInstaller output folder (exe + _internal)
 Source: "..\dist\PanthaTerminal\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
@@ -60,7 +61,7 @@ Source: "..\dist\PanthaTerminal\*"; DestDir: "{app}"; Flags: recursesubdirs crea
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
-; Desktop shortcut
+; Desktop shortcut (optional)
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
@@ -69,7 +70,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; \
   Flags: uninsdeletevalue; Tasks: startup
 
-; Add to PATH (SYSTEM PATH because installer runs as admin)
+; Add to PATH (system PATH because installer runs as admin)
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
   ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; \
   Flags: preservestringtype; Tasks: addtopath
@@ -80,15 +81,18 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 [Code]
 procedure InitializeWizard();
 begin
-  WizardForm.Color := $07000F;  { deep purple-black }
+  { background }
+  WizardForm.Color := $07000F;
   WizardForm.Font.Color := clWhite;
 
+  { labels }
   WizardForm.WelcomeLabel1.Font.Color := $FF4DFF;
   WizardForm.WelcomeLabel2.Font.Color := $B066FF;
 
   WizardForm.PageNameLabel.Font.Color := $FF4DFF;
   WizardForm.PageDescriptionLabel.Font.Color := $B066FF;
 
+  { buttons }
   WizardForm.NextButton.Font.Color := clWhite;
   WizardForm.BackButton.Font.Color := clWhite;
   WizardForm.CancelButton.Font.Color := clWhite;
