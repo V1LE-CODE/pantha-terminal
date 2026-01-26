@@ -1,154 +1,78 @@
-import sys
-import asyncio
-import traceback
-from pathlib import Path
+from __future__ import annotations
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Static, Input, RichLog
+from textual.containers import Vertical
+from textual.widgets import Header, Footer, Static, Input, RichLog
 from textual import events
-from textual.timer import Timer
 
-from app.commands import run_command
-
-
-def get_css_path() -> str:
-    """
-    CSS path that works in:
-    - normal python runs
-    - PyInstaller onefile EXE runs
-    """
-    if hasattr(sys, "_MEIPASS"):
-        base = Path(sys._MEIPASS)
-        return str(base / "styles.tcss")
-    return str(Path(__file__).with_name("styles.tcss"))
-
-
-PANTHA_LOGO = r"""
+ASCII_ART = r"""
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
 ██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
+                 PANTHA TERMINAL
 """
 
-
 class PanthaTerminal(App):
+    CSS_PATH = "styles.tcss"
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Neon Purple Terminal UI"
-    CSS_PATH = get_css_path()
-
-    def __init__(self):
-        super().__init__()
-        self.glow_state = 0
-        self.glow_timer: Timer | None = None
+    SUB_TITLE = "Purple Glow • ASCII • Aesthetic"
 
     def compose(self) -> ComposeResult:
-        # Outer glow frame (pulses)
-        with Vertical(id="outer_frame", classes="glow1"):
-            # Inner frame (actual UI)
-            with Vertical(id="inner_frame"):
-                yield Static("💜 PANTHA TERMINAL 💜", id="header")
+        yield Header(show_clock=True)
 
-                # Splash (will hide after boot)
-                with Vertical(id="splash_box"):
-                    yield Static(PANTHA_LOGO, id="splash_logo")
-                    yield Static("Booting Pantha systems...", id="splash_text")
+        with Vertical(id="root"):
+            with Vertical(id="main_box"):
+                yield Static("💜 Pantha Terminal", id="title")
+                yield Static("Type commands below (try: help)", id="subtitle")
 
-                # Main UI (hidden during splash)
-                self.output = RichLog(id="output", wrap=True, highlight=True, markup=True)
-                yield self.output
+                yield Static(ASCII_ART, id="ascii")
 
-                with Horizontal(id="inputbar"):
-                    yield Static("Pantha >", id="prompt")
-                    yield Input(placeholder="Type a command... (help)", id="command_input")
+                yield RichLog(id="log", wrap=True, highlight=True)
 
-    async def on_mount(self) -> None:
-        # Start glow pulse
-        self.glow_timer = self.set_interval(0.28, self.pulse_glow)
+                with Vertical(id="input_row"):
+                    yield Input(placeholder="Pantha > ", id="cmd")
+                    yield Static("Tip: help | clear | exit", id="hint")
 
-        # Hide main UI during splash
-        self.output.display = False
-        self.query_one("#inputbar").display = False
+        yield Footer()
 
-        # Run splash boot sequence
-        await self.splash_sequence()
+    def on_mount(self) -> None:
+        log = self.query_one("#log", RichLog)
+        log.write("[b magenta]Pantha Terminal booted.[/]")
+        log.write("[magenta]Ready for commands.[/]\n")
 
-        # Reveal main UI
-        self.query_one("#splash_box").display = False
-        self.output.display = True
-        self.query_one("#inputbar").display = True
-
-        self.output.write("[bold bright_magenta]Welcome to Pantha Terminal.[/]")
-        self.output.write("[magenta]Type 'help' to see available commands.[/]")
-        self.output.write("")
-        self.output.write("[dim]Tip: Press Ctrl+C to quit instantly.[/]")
-        self.output.write("")
-
-        self.query_one("#command_input", Input).focus()
-
-    async def splash_sequence(self) -> None:
-        splash_text = self.query_one("#splash_text", Static)
-
-        steps = [
-            "Booting Pantha systems...",
-            "Charging neon glow core...",
-            "Linking terminal interface...",
-            "Loading command modules...",
-            "Boot complete 💜",
-        ]
-
-        for step in steps:
-            splash_text.update(step)
-            await asyncio.sleep(0.55)
-
-    def pulse_glow(self) -> None:
-        outer = self.query_one("#outer_frame")
-        self.glow_state = (self.glow_state + 1) % 3
-
-        outer.set_class(self.glow_state == 0, "glow1")
-        outer.set_class(self.glow_state == 1, "glow2")
-        outer.set_class(self.glow_state == 2, "glow3")
-
-    async def on_input_submitted(self, event: Input.Submitted) -> None:
-        command = event.value.strip()
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        cmd = event.value.strip()
         event.input.value = ""
 
-        if not command:
+        log = self.query_one("#log", RichLog)
+
+        if not cmd:
             return
 
-        self.output.write(f"[bold bright_magenta]Pantha >[/] {command}")
+        log.write(f"[bold #ff00ff]Pantha >[/] {cmd}")
 
-        result, action = run_command(command)
-
-        if action == "clear":
-            self.output.clear()
+        if cmd.lower() in ["exit", "quit"]:
+            log.write("[#c57dff]Closing Pantha Terminal...[/]")
+            self.exit()
             return
 
-        if action == "exit":
-            await self.action_quit()
+        if cmd.lower() == "help":
+            log.write("[#d8a7ff]Commands:[/]")
+            log.write("  [#f4d6ff]help[/]  - show this menu")
+            log.write("  [#f4d6ff]clear[/] - clear log")
+            log.write("  [#f4d6ff]exit[/]  - close app")
             return
 
-        if result:
-            self.output.write(result)
+        if cmd.lower() == "clear":
+            log.clear()
+            return
 
-        self.output.write("")
-
-    async def on_key(self, event: events.Key) -> None:
-        if event.key == "ctrl+c":
-            await self.action_quit()
-
-
-def main():
-    try:
-        PanthaTerminal().run()
-    except Exception:
-        # If it crashes in EXE, show the error instead of closing instantly
-        print("\n🔥 Pantha Terminal crashed!\n")
-        print(traceback.format_exc())
-        input("\nPress ENTER to close...")
+        log.write(f"[#a96cff]Unknown command:[/] {cmd}")
+        log.write("[#c57dff]Try: help[/]\n")
 
 
 if __name__ == "__main__":
-    main()
+    PanthaTerminal().run()
