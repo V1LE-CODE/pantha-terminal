@@ -28,11 +28,16 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 
+; ICONS / LOOK
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
+; UI
 WizardResizable=no
 DisableProgramGroupPage=yes
+DisableWelcomePage=no
+DisableDirPage=no
+DisableReadyMemo=no
 
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64
@@ -48,28 +53,32 @@ Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
 Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
 
 [Files]
-; IMPORTANT:
-; This installs the FULL folder build output (exe + _internal + everything)
+; Install EVERYTHING from the PyInstaller output folder:
+; dist\PanthaTerminal\PanthaTerminal.exe + _internal + any extra files
 Source: "..\dist\PanthaTerminal\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
+; Start Menu
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
+; Desktop shortcut
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
+; Startup option
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; \
   Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
+; Launch after install
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 procedure InitializeWizard();
 begin
-  WizardForm.Color := $07000F;
+  WizardForm.Color := $07000F;  { deep purple-black }
   WizardForm.Font.Color := clWhite;
 
   WizardForm.WelcomeLabel1.Font.Color := $FF4DFF;
