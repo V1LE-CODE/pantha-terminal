@@ -25,7 +25,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 
 [Files]
-; This MUST exist after PyInstaller runs
+; This file is created automatically by PyInstaller in GitHub Actions
 Source: "dist\PanthaTerminal.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
