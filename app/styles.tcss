@@ -1,65 +1,133 @@
-/* Pantha Terminal - Neon Purple Glow Theme */
+/* =========================================================
+   PANTHA TERMINAL 💜
+   Ultra Neon Purple Glow Theme (Textual / TCSS)
+   ========================================================= */
 
 Screen {
     background: #05010a;
 }
 
-/* Main neon frame */
-#frame {
+/* OUTER frame = "glow aura" */
+#outer_frame {
     width: 100%;
     height: 100%;
     padding: 1 2;
-    border: round #c300ff;
+
+    background: #05010a;
+    border: heavy #ff2dff;
+}
+
+/* INNER frame = main terminal container */
+#inner_frame {
+    width: 100%;
+    height: 100%;
+    padding: 1 2;
+
     background: #0b0213;
+    border: round #7a00ff;
 }
 
-/* Pulse glow effect */
+/* Pulse states (we apply to outer_frame to fake glow) */
 .glow1 {
-    border: round #ff00ff;
-}
-.glow2 {
-    border: round #d000ff;
-}
-.glow3 {
-    border: round #a000ff;
+    border: heavy #ff2dff;
 }
 
-/* Header */
+.glow2 {
+    border: heavy #c400ff;
+}
+
+.glow3 {
+    border: heavy #7a00ff;
+}
+
+/* Header title */
 #header {
     height: 3;
     content-align: center middle;
-    color: #ff5cff;
+
+    background: #090012;
+    border: round #5c00b8;
+
+    color: #ff66ff;
     text-style: bold;
 }
 
-/* Output area */
+/* Splash screen box */
+#splash_box {
+    height: 1fr;
+    content-align: center middle;
+
+    background: #07000f;
+    border: round #6f00ff;
+}
+
+/* Splash logo */
+#splash_logo {
+    color: #ff66ff;
+    text-style: bold;
+}
+
+/* Splash loading text */
+#splash_text {
+    color: #cda3ff;
+}
+
+/* Output log area */
 #output {
     height: 1fr;
-    padding: 1;
-    border: round #7a00ff;
-    background: #090012;
-    color: #f6e6ff;
+    padding: 1 2;
+
+    background: #07000f;
+    border: round #6f00ff;
+
+    color: #f5e6ff;
 }
 
 /* Input bar container */
 #inputbar {
     height: 3;
     padding: 0 1;
-    border: round #7a00ff;
-    background: #090012;
+
+    background: #07000f;
+    border: round #6f00ff;
 }
 
 /* Prompt label */
 #prompt {
     width: 10;
     content-align: left middle;
-    color: #ff5cff;
+
+    color: #ff66ff;
     text-style: bold;
 }
 
-/* Input field */
+/* Input widget */
 Input {
+    width: 1fr;
+    height: 1;
+
     background: #12001f;
     color: #ffffff;
+
     border: none;
+}
+
+Input:focus {
+    background: #18002a;
+}
+
+/* Placeholder text */
+Input.-placeholder {
+    color: #9b7bbd;
+}
+
+/* Scrollbar glow */
+RichLog {
+    scrollbar-color: #b300ff;
+    scrollbar-color-hover: #ff2dff;
+}
+
+/* spacing */
+#header, #output, #inputbar, #splash_box {
+    margin: 0 0 1 0;
 }
