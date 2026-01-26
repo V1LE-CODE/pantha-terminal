@@ -3,8 +3,11 @@
 #define MyAppPublisher "Pantha"
 #define MyAppURL "https://github.com/V1LE-FARM/pantha-terminal"
 
-; Version will be injected by GitHub Actions:
+; Version injected by GitHub Actions (fallback if missing)
 #define MyAppVersion GetEnv("PANTHA_VERSION")
+#if MyAppVersion == ""
+  #define MyAppVersion "v0.0.0"
+#endif
 
 [Setup]
 AppId={{A7C9A8B4-0F2A-4C5D-9E2A-1A1F9B8D9C01}}
@@ -30,18 +33,12 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 
 WizardResizable=no
 DisableProgramGroupPage=yes
-DisableWelcomePage=no
-DisableDirPage=no
-DisableReadyMemo=no
 
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64
 
 UsePreviousAppDir=yes
 UsePreviousGroup=yes
-
-; IMPORTANT: ensures installer runs from its own folder correctly
-ChangesAssociations=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -51,37 +48,28 @@ Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
 Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
 
 [Files]
-; Install the entire folder build (PanthaTerminal.exe + _internal + all bundled deps)
+; IMPORTANT:
+; This installs the FULL folder build output (exe + _internal + everything)
 Source: "..\dist\PanthaTerminal\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
-; OPTIONAL (recommended): include your icon in install folder too
-Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
-
 [Icons]
-; Start Menu shortcut
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
-; Desktop shortcut (optional)
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; Startup option
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; \
   Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
-; Launch after install
-Filename: "{app}\{#MyAppExeName}";
-Description: "Launch {#MyAppName}";
-WorkingDir: "{app}";
-Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 procedure InitializeWizard();
 begin
-  WizardForm.Color := $07000F;  { deep purple-black }
+  WizardForm.Color := $07000F;
   WizardForm.Font.Color := clWhite;
 
   WizardForm.WelcomeLabel1.Font.Color := $FF4DFF;
