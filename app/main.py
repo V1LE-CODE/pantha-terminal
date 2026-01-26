@@ -8,7 +8,7 @@ from textual.widgets import Header, Footer, RichLog, Input
 
 def resource_path(relative: str) -> Path:
     """
-    Get absolute path to resource, works for dev and for PyInstaller.
+    Works for normal runs + PyInstaller builds.
     """
     if hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS) / relative
@@ -17,7 +17,7 @@ def resource_path(relative: str) -> Path:
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Purple Glow • ASCII • Aesthetic"
+    SUB_TITLE = "Purple Glow • ASCII Terminal"
 
     CSS_PATH = resource_path("styles.tcss")
 
@@ -35,34 +35,35 @@ class PanthaTerminal(App):
 
     def on_mount(self) -> None:
         log = self.query_one("#log", RichLog)
-        log.write("[b magenta]╔══════════════════════════════════╗[/]")
-        log.write("[b magenta]║      🐆  Pantha Terminal  🐆      ║[/]")
-        log.write("[b magenta]╚══════════════════════════════════╝[/]")
-        log.write("[#b066ff]Welcome to Pantha Terminal.[/]")
-        log.write("[#b066ff]Type something and press Enter.[/]\n")
+
+        log.write("[b #b066ff]╔══════════════════════════════════════╗[/]")
+        log.write("[b #b066ff]║      🐆   PANTHA TERMINAL   🐆       ║[/]")
+        log.write("[b #b066ff]╚══════════════════════════════════════╝[/]")
+        log.write("[#ff4dff]Neon Purple Mode: ONLINE[/]")
+        log.write("[#8f5bff]Type a command and press Enter.[/]\n")
 
         self.query_one("#input", Input).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        text = event.value.strip()
+        cmd = event.value.strip()
         event.input.value = ""
 
         log = self.query_one("#log", RichLog)
 
-        if not text:
+        if not cmd:
             return
 
-        log.write(f"[b #b066ff]pantha>[/] {text}")
+        log.write(f"[b #b066ff]pantha>[/] {cmd}")
 
-        if text.lower() in ("exit", "quit"):
+        if cmd.lower() in ("exit", "quit"):
             self.exit()
             return
 
-        if text.lower() == "clear":
+        if cmd.lower() == "clear":
             log.clear()
             return
 
-        log.write(f"[#8f5bff]You typed:[/] {text}")
+        log.write(f"[#8f5bff]Echo:[/] {cmd}")
 
     def action_clear(self) -> None:
         self.query_one("#log", RichLog).clear()
