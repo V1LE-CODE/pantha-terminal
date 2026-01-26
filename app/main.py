@@ -1,4 +1,5 @@
 import sys
+import asyncio
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -11,25 +12,26 @@ from app.commands import run_command
 
 
 def get_css_path() -> str:
-    """
-    Returns a CSS path that works in:
-    - normal python runs
-    - PyInstaller onefile EXE runs
-    """
+    """CSS path that works in normal runs + PyInstaller EXE."""
     if hasattr(sys, "_MEIPASS"):
-        # Running inside PyInstaller bundle
         base = Path(sys._MEIPASS)
         return str(base / "styles.tcss")
-
-    # Normal dev mode
     return str(Path(__file__).with_name("styles.tcss"))
+
+
+PANTHA_LOGO = r"""
+██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
+██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
+██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
+██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
+╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
+"""
 
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Neon Purple Terminal UI"
-
-    # IMPORTANT: CSS must be set here (Textual reads it on startup)
     CSS_PATH = get_css_path()
 
     def __init__(self):
@@ -37,34 +39,72 @@ class PanthaTerminal(App):
         self.glow_state = 0
         self.glow_timer: Timer | None = None
 
+        self.showing_splash = True
+
     def compose(self) -> ComposeResult:
-        with Vertical(id="frame", classes="glow1"):
-            yield Static("💜 PANTHA TERMINAL 💜", id="header")
+        # OUTER glow frame
+        with Vertical(id="outer_frame", classes="glow1"):
+            # INNER frame (real UI)
+            with Vertical(id="inner_frame"):
+                yield Static("💜 PANTHA TERMINAL 💜", id="header")
 
-            self.output = RichLog(id="output", wrap=True, highlight=True, markup=True)
-            yield self.output
+                # Splash screen container (we will hide later)
+                with Vertical(id="splash_box"):
+                    yield Static(PANTHA_LOGO, id="splash_logo")
+                    yield Static("Loading neon systems...", id="splash_text")
 
-            with Horizontal(id="inputbar"):
-                yield Static("Pantha >", id="prompt")
-                yield Input(placeholder="Type a command... (help)", id="command_input")
+                # Main output + input (hidden during splash)
+                self.output = RichLog(id="output", wrap=True, highlight=True, markup=True)
+                yield self.output
 
-    def on_mount(self) -> None:
+                with Horizontal(id="inputbar"):
+                    yield Static("Pantha >", id="prompt")
+                    yield Input(placeholder="Type a command... (help)", id="command_input")
+
+    async def on_mount(self) -> None:
+        # Start glow pulse
+        self.glow_timer = self.set_interval(0.30, self.pulse_glow)
+
+        # Hide main UI first (until splash done)
+        self.output.display = False
+        self.query_one("#inputbar").display = False
+
+        # Run splash animation then reveal UI
+        await self.run_splash()
+
+        self.output.display = True
+        self.query_one("#inputbar").display = True
+        self.query_one("#splash_box").display = False
+
         self.output.write("[bold bright_magenta]Welcome to Pantha Terminal.[/]")
         self.output.write("[magenta]Type 'help' to see available commands.[/]")
         self.output.write("")
         self.output.write("[dim]Tip: Press Ctrl+C to quit instantly.[/]")
         self.output.write("")
 
-        self.glow_timer = self.set_interval(0.35, self.pulse_glow)
         self.query_one("#command_input", Input).focus()
 
+    async def run_splash(self) -> None:
+        splash_text = self.query_one("#splash_text", Static)
+
+        steps = [
+            "Loading neon systems...",
+            "Charging purple glow core...",
+            "Linking Pantha interface...",
+            "Boot complete. Welcome 💜",
+        ]
+
+        for s in steps:
+            splash_text.update(s)
+            await asyncio.sleep(0.55)
+
     def pulse_glow(self) -> None:
-        frame = self.query_one("#frame")
+        outer = self.query_one("#outer_frame")
         self.glow_state = (self.glow_state + 1) % 3
 
-        frame.set_class(self.glow_state == 0, "glow1")
-        frame.set_class(self.glow_state == 1, "glow2")
-        frame.set_class(self.glow_state == 2, "glow3")
+        outer.set_class(self.glow_state == 0, "glow1")
+        outer.set_class(self.glow_state == 1, "glow2")
+        outer.set_class(self.glow_state == 2, "glow3")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         command = event.value.strip()
