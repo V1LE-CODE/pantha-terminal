@@ -55,7 +55,12 @@ jobs:
 
       - name: Build PanthaTerminal (Windows folder build)
         run: |
-          pyinstaller --noconfirm --clean --name "PanthaTerminal" --windowed --icon "assets/icon.ico" --add-data "app/styles.tcss;app" app/main.py
+          pyinstaller --noconfirm --clean ^
+            --name "PanthaTerminal" ^
+            --windowed ^
+            --icon "assets/icon.ico" ^
+            --add-data "app/styles.tcss;app" ^
+            app/main.py
 
       - name: Install Inno Setup
         run: |
@@ -130,9 +135,7 @@ jobs:
           from PIL import Image
           ico_path = "assets/icon.ico"
           out_path = "AppDir/pantha-terminal.png"
-
           img = Image.open(ico_path)
-
           frames = []
           try:
               for i in range(img.n_frames):
@@ -140,7 +143,6 @@ jobs:
                   frames.append((img.size[0]*img.size[1], img.copy()))
           except Exception:
               frames.append((img.size[0]*img.size[1], img.copy()))
-
           best = sorted(frames, key=lambda x: x[0], reverse=True)[0][1].convert("RGBA")
           best = best.resize((256, 256))
           best.save(out_path, format="PNG")
@@ -149,7 +151,6 @@ jobs:
 
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
-
           ./appimagetool-x86_64.AppImage AppDir PanthaTerminal-Linux.AppImage
 
       - name: Upload Linux AppImage
