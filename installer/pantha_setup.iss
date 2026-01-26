@@ -24,7 +24,6 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired=admin
 
 [Files]
-; PyInstaller folder output is: dist\PanthaTerminal\PanthaTerminal.exe + libs
 Source: "..\dist\PanthaTerminal\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Tasks]
