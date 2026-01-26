@@ -1,77 +1,71 @@
-from __future__ import annotations
+import sys
+from pathlib import Path
 
 from textual.app import App, ComposeResult
-from textual.containers import Vertical
-from textual.widgets import Header, Footer, Static, Input, RichLog
-from textual import events
+from textual.containers import Container
+from textual.widgets import Header, Footer, RichLog, Input
 
-ASCII_ART = r"""
-██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
-██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
-██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
-██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
-╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
-                 PANTHA TERMINAL
-"""
+
+def resource_path(relative: str) -> Path:
+    """
+    Get absolute path to resource, works for dev and for PyInstaller.
+    """
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / relative
+    return Path(__file__).parent / relative
+
 
 class PanthaTerminal(App):
-    CSS_PATH = "styles.tcss"
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Purple Glow • ASCII • Aesthetic"
 
+    CSS_PATH = resource_path("styles.tcss")
+
+    BINDINGS = [
+        ("ctrl+c", "quit", "Quit"),
+        ("ctrl+l", "clear", "Clear"),
+    ]
+
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-
-        with Vertical(id="root"):
-            with Vertical(id="main_box"):
-                yield Static("💜 Pantha Terminal", id="title")
-                yield Static("Type commands below (try: help)", id="subtitle")
-
-                yield Static(ASCII_ART, id="ascii")
-
-                yield RichLog(id="log", wrap=True, highlight=True)
-
-                with Vertical(id="input_row"):
-                    yield Input(placeholder="Pantha > ", id="cmd")
-                    yield Static("Tip: help | clear | exit", id="hint")
-
+        yield Header()
+        with Container(id="root"):
+            yield RichLog(id="log", highlight=True, markup=True)
+            yield Input(placeholder="Type a command…", id="input")
         yield Footer()
 
     def on_mount(self) -> None:
         log = self.query_one("#log", RichLog)
-        log.write("[b magenta]Pantha Terminal booted.[/]")
-        log.write("[magenta]Ready for commands.[/]\n")
+        log.write("[b magenta]╔══════════════════════════════════╗[/]")
+        log.write("[b magenta]║      🐆  Pantha Terminal  🐆      ║[/]")
+        log.write("[b magenta]╚══════════════════════════════════╝[/]")
+        log.write("[#b066ff]Welcome to Pantha Terminal.[/]")
+        log.write("[#b066ff]Type something and press Enter.[/]\n")
+
+        self.query_one("#input", Input).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        cmd = event.value.strip()
+        text = event.value.strip()
         event.input.value = ""
 
         log = self.query_one("#log", RichLog)
 
-        if not cmd:
+        if not text:
             return
 
-        log.write(f"[bold #ff00ff]Pantha >[/] {cmd}")
+        log.write(f"[b #b066ff]pantha>[/] {text}")
 
-        if cmd.lower() in ["exit", "quit"]:
-            log.write("[#c57dff]Closing Pantha Terminal...[/]")
+        if text.lower() in ("exit", "quit"):
             self.exit()
             return
 
-        if cmd.lower() == "help":
-            log.write("[#d8a7ff]Commands:[/]")
-            log.write("  [#f4d6ff]help[/]  - show this menu")
-            log.write("  [#f4d6ff]clear[/] - clear log")
-            log.write("  [#f4d6ff]exit[/]  - close app")
-            return
-
-        if cmd.lower() == "clear":
+        if text.lower() == "clear":
             log.clear()
             return
 
-        log.write(f"[#a96cff]Unknown command:[/] {cmd}")
-        log.write("[#c57dff]Try: help[/]\n")
+        log.write(f"[#8f5bff]You typed:[/] {text}")
+
+    def action_clear(self) -> None:
+        self.query_one("#log", RichLog).clear()
 
 
 if __name__ == "__main__":
