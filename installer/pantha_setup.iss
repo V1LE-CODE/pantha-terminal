@@ -1,39 +1,40 @@
 #define MyAppName "Pantha Terminal"
-#define MyAppVersion "1.0.0"
-#define MyAppPublisher "Pantha"
 #define MyAppExeName "PanthaTerminal.exe"
+#define MyAppVersion "1.0.0"
+#define MyAppPublisher "V1LE-FARM"
+#define MyAppURL "https://github.com/V1LE-FARM/pantha-terminal"
 
 [Setup]
-AppId={{A1C4D0B1-7E2A-4C91-9F11-11PANTHA0001}}
+AppId={{A7C9A8B4-0F2A-4C5D-9E2A-1A1F9B8D9C01}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}
 
-DefaultDirName={autopf}\Pantha Terminal
-DefaultGroupName=Pantha Terminal
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
 
-OutputDir={#SourcePath}\installer_output
+OutputDir=..\installer_output
 OutputBaseFilename=PanthaSetup
-
 Compression=lzma
 SolidCompression=yes
-WizardStyle=modern
-PrivilegesRequired=admin
-DisableProgramGroupPage=yes
 
-SetupIconFile={#SourcePath}\assets\icon.ico
+SetupIconFile=..\assets\icon.ico
+WizardStyle=modern
+
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Files]
-Source: "{#SourcePath}\dist\PanthaTerminal.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourcePath}\assets\icon.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
-
-[Tasks]
-Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
+Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Pantha Terminal"; Filename: "{app}\{#MyAppExeName}"
-Name: "{commondesktop}\Pantha Terminal"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a Desktop icon"; GroupDescription: "Additional icons:"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch Pantha Terminal"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
