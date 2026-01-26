@@ -25,11 +25,9 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 
-; ICONS / LOOK
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
-; Make it look more "premium"
 WizardResizable=no
 DisableProgramGroupPage=yes
 DisableWelcomePage=no
@@ -39,9 +37,11 @@ DisableReadyMemo=no
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64
 
-; Optional: makes it feel smoother
 UsePreviousAppDir=yes
 UsePreviousGroup=yes
+
+; IMPORTANT: ensures installer runs from its own folder correctly
+ChangesAssociations=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -51,16 +51,19 @@ Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
 Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
 
 [Files]
-; Install the whole PyInstaller output folder (exe + _internal)
+; Install the entire folder build (PanthaTerminal.exe + _internal + all bundled deps)
 Source: "..\dist\PanthaTerminal\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
+; OPTIONAL (recommended): include your icon in install folder too
+Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+
 [Icons]
-; Start Menu
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+; Start Menu shortcut
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 ; Desktop shortcut (optional)
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Registry]
 ; Startup option
@@ -69,7 +72,11 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+; Launch after install
+Filename: "{app}\{#MyAppExeName}";
+Description: "Launch {#MyAppName}";
+WorkingDir: "{app}";
+Flags: nowait postinstall skipifsilent
 
 [Code]
 procedure InitializeWizard();
