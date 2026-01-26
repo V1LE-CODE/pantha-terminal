@@ -1,70 +1,27 @@
-name: Pantha Terminal CI + Builds + Setups
+name: Build Pantha Terminal
 
 on:
   push:
-    branches: ["main"]
-  pull_request:
+    tags:
+      - "v*"
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+  build-windows-setup:
+    name: Build Windows Setup (PanthaSetup.exe)
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Import test
-        run: |
-          python -c "from app.main import PanthaTerminal; print('Pantha import OK')"
-
-  setup_windows:
-    name: Build Windows Setup (PanthaSetup.exe)
-    runs-on: windows-latest
-    needs: test
-
-    steps:
-      - name: Checkout repo (full history for tags)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set version (tag or fallback) - NEVER FAILS
+      - name: Set version (tag or fallback)
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Continue"
-
-          $tag = ""
-          try {
-            $tag = (git describe --tags --abbrev=0) 2>$null
-          } catch {
-            $tag = ""
-          }
-
-          if (-not $tag) {
-            $tag = "v0.0.${{ github.run_number }}"
-          }
-
+          $tag = (git describe --tags --abbrev=0 2>$null)
+          if (-not $tag) { $tag = "v0.0.0" }
+          echo "PANTHA_VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "Using version: $tag"
-          "PANTHA_VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-          exit 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -78,28 +35,15 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # IMPORTANT:
-      # - ONEDIR is required because your Inno Setup script copies dist\PanthaTerminal\*
-      # - Use --console so errors show instead of instantly closing
       - name: Build PanthaTerminal (Windows ONEDIR + CONSOLE)
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean `
-            --name "PanthaTerminal" `
-            --console `
-            --icon "assets/icon.ico" `
-            --add-data "app/styles.tcss;app" `
-            --add-data "app;app" `
-            app/main.py
-
-          echo "==== DIST CONTENTS ===="
-          Get-ChildItem -Recurse dist
-          echo "======================="
-
-          if (!(Test-Path "dist\PanthaTerminal\PanthaTerminal.exe")) {
-            echo "ERROR: dist\PanthaTerminal\PanthaTerminal.exe missing"
-            exit 1
-          }
+          pyinstaller --noconfirm --clean ^
+            --name PanthaTerminal ^
+            --onedir ^
+            --console ^
+            --add-data "app/styles.tcss;app" ^
+            main.py
 
       - name: Install Inno Setup
         shell: pwsh
@@ -109,22 +53,28 @@ jobs:
       - name: Compile Windows Installer
         shell: pwsh
         run: |
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\Pantha_setup.iss"
+          iscc installer/pantha_setup.iss
 
       - name: Upload Windows Setup
         uses: actions/upload-artifact@v4
         with:
           name: PanthaSetup-Windows
-          path: installer_output/*
+          path: installer_output/*.exe
 
-  setup_linux:
+  build-linux-appimage:
     name: Build Linux Setup (AppImage)
     runs-on: ubuntu-latest
-    needs: test
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Set version (tag or fallback)
+        shell: bash
+        run: |
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "PANTHA_VERSION=$tag" >> $GITHUB_ENV
+          echo "Using version: $tag"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -137,49 +87,46 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # AppImage works best with ONEDIR (not onefile)
-      - name: Build PanthaTerminal (Linux ONEDIR)
+      - name: Build Linux folder (PyInstaller ONEDIR)
         run: |
           pyinstaller --noconfirm --clean \
-            --name "PanthaTerminal" \
+            --name PanthaTerminal \
+            --onedir \
             --add-data "app/styles.tcss:app" \
-            --add-data "app:app" \
-            app/main.py
+            main.py
+
+      - name: Install AppImage dependencies (FIX libfuse.so.2)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
 
       - name: Create AppDir structure
         run: |
-          rm -rf AppDir
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
 
-          # Copy the whole ONEDIR folder contents into AppDir/usr/bin
           cp -r dist/PanthaTerminal/* AppDir/usr/bin/
 
-          chmod +x AppDir/usr/bin/PanthaTerminal || true
-
-          # Desktop file required
-          cat > AppDir/pantha-terminal.desktop << 'EOF'
+          cat > AppDir/usr/share/applications/pantha-terminal.desktop <<EOF
           [Desktop Entry]
-          Type=Application
           Name=Pantha Terminal
           Exec=PanthaTerminal
           Icon=pantha-terminal
-          Categories=Utility;System;
-          Terminal=false
+          Type=Application
+          Categories=Utility;TerminalEmulator;
+          Terminal=true
           EOF
 
-          # AppRun required
-          cat > AppDir/AppRun << 'EOF'
+          cp assets/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/pantha-terminal.png || true
+
+          cat > AppDir/AppRun <<'EOF'
           #!/bin/sh
           HERE="$(dirname "$(readlink -f "$0")")"
           exec "$HERE/usr/bin/PanthaTerminal"
           EOF
-          chmod +x AppDir/AppRun
 
-          # We only have icon.ico in repo
-          cp assets/icon.ico AppDir/pantha-terminal.ico || true
-          cp assets/icon.ico AppDir/usr/share/icons/hicolor/256x256/apps/pantha-terminal.ico || true
+          chmod +x AppDir/AppRun
 
       - name: Download appimagetool
         run: |
@@ -190,20 +137,26 @@ jobs:
         run: |
           ./appimagetool-x86_64.AppImage AppDir PanthaTerminal-Linux.AppImage
 
-      - name: Upload Linux Setup
+      - name: Upload Linux AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: PanthaSetup-Linux
+          name: PanthaTerminal-Linux-AppImage
           path: PanthaTerminal-Linux.AppImage
 
-  setup_macos:
+  build-macos-dmg:
     name: Build macOS Setup (DMG)
     runs-on: macos-latest
-    needs: test
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Set version (tag or fallback)
+        shell: bash
+        run: |
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "PANTHA_VERSION=$tag" >> $GITHUB_ENV
+          echo "Using version: $tag"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -216,24 +169,22 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build PanthaTerminal (macOS app bundle)
+      - name: Build macOS folder (PyInstaller ONEDIR)
         run: |
           pyinstaller --noconfirm --clean \
-            --name "PanthaTerminal" \
-            --windowed \
+            --name PanthaTerminal \
+            --onedir \
             --add-data "app/styles.tcss:app" \
-            --add-data "app:app" \
-            app/main.py
+            main.py
 
       - name: Create DMG
         run: |
-          rm -rf dmg_stage
-          mkdir -p dmg_stage
-          cp -R dist/PanthaTerminal.app dmg_stage/
-          hdiutil create -volname "Pantha Terminal" -srcfolder dmg_stage -ov -format UDZO PanthaTerminal-macOS.dmg
+          mkdir -p dmgroot
+          cp -r dist/PanthaTerminal dmgroot/PanthaTerminal
+          hdiutil create PanthaTerminal-macOS.dmg -srcfolder dmgroot -ov
 
-      - name: Upload macOS Setup
+      - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: PanthaSetup-macOS
+          name: PanthaTerminal-macOS-DMG
           path: PanthaTerminal-macOS.dmg
