@@ -1,63 +1,123 @@
-#define MyAppName "Pantha Terminal"
-#define MyAppExeName "PanthaTerminal.exe"
-#define MyAppPublisher "Pantha"
-#define MyAppURL "https://github.com/V1LE-FARM/pantha-terminal"
+name: Build Pantha Terminal
 
-#define MyAppVersion GetEnv("PANTHA_VERSION")
-#if MyAppVersion == ""
-  #define MyAppVersion "v0.0.0"
-#endif
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
 
-[Setup]
-AppId={{A7C9A8B4-0F2A-4C5D-9E2A-1A1F9B8D9C01}}
-AppName={#MyAppName}
-AppVersion={#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
+permissions:
+  contents: read
 
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+jobs:
+  build-windows:
+    name: Build Windows Setup (PanthaSetup.exe)
+    runs-on: windows-latest
 
-OutputDir=..\installer_output
-OutputBaseFilename=PanthaSetup-Windows-{#MyAppVersion}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-Compression=lzma
-SolidCompression=yes
-WizardStyle=modern
+      - name: Set version (tag or fallback)
+        shell: pwsh
+        run: |
+          $ver = "v0.0.0"
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $ver = "${{ github.ref_name }}"
+          }
+          Write-Host "Using version: $ver"
+          "PANTHA_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-SetupIconFile=..\assets\icon.ico
-UninstallDisplayIcon={app}\{#MyAppExeName}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-WizardResizable=no
-DisableProgramGroupPage=yes
+      - name: Install deps + PyInstaller
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
 
-PrivilegesRequired=admin
-ArchitecturesInstallIn64BitMode=x64
+      - name: Build PanthaTerminal (Windows ONEDIR + CONSOLE)
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean `
+            --name "PanthaTerminal" `
+            --onedir `
+            --console `
+            app/main.py
 
-UsePreviousAppDir=yes
-UsePreviousGroup=yes
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y
 
-[Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"
+      - name: Ensure installer_output folder exists
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path installer_output | Out-Null
 
-[Tasks]
-Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
-Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
+      - name: Compile Windows Installer (pantha_setup.iss)
+        shell: pwsh
+        run: |
+          iscc installer/pantha_setup.iss
 
-[Files]
-Source: "..\dist\PanthaTerminal\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+      - name: Upload Windows Setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: PanthaSetup-Windows-${{ env.PANTHA_VERSION }}
+          path: installer_output/*.exe
 
-[Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+  build-macos:
+    name: Build macOS Setup (DMG)
+    runs-on: macos-latest
 
-[Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
-  ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; \
-  Flags: uninsdeletevalue; Tasks: startup
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-[Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+      - name: Set version (tag or fallback)
+        shell: bash
+        run: |
+          ver="v0.0.0"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            ver="${{ github.ref_name }}"
+          fi
+          echo "Using version: $ver"
+          echo "PANTHA_VERSION=$ver" >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build macOS folder (PyInstaller ONEDIR)
+        run: |
+          pyinstaller --noconfirm --clean \
+            --name "PanthaTerminal" \
+            --onedir \
+            app/main.py
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg/PanthaTerminal
+          cp -R dist/PanthaTerminal/* dmg/PanthaTerminal/
+
+          hdiutil create -volname "PanthaTerminal" \
+            -srcfolder dmg/PanthaTerminal \
+            -ov -format UDZO \
+            PanthaTerminal-macOS-${{ env.PANTHA_VERSION }}.dmg
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: PanthaTerminal-macOS-${{ env.PANTHA_VERSION }}
+          path: PanthaTerminal-macOS-*.dmg
