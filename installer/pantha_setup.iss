@@ -61,4 +61,22 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+; --- BEST LAUNCH METHOD: Windows Terminal (keeps it open, shows output)
+Filename: "wt.exe"; \
+  Parameters: "-w 0 new-tab --title ""Pantha Terminal"" cmd /k ""cd /d """"{app}"""" && """"{app}\{#MyAppExeName}"""""""; \
+  Description: "Launch {#MyAppName} (Windows Terminal)"; \
+  Flags: postinstall nowait skipifsilent; \
+  Check: WindowsTerminalExists
+
+; --- FALLBACK: cmd.exe (still keeps window open)
+Filename: "cmd.exe"; \
+  Parameters: "/k ""cd /d """"{app}"""" && """"{app}\{#MyAppExeName}"""""""; \
+  Description: "Launch {#MyAppName} (Command Prompt)"; \
+  Flags: postinstall nowait skipifsilent; \
+  Check: not WindowsTerminalExists
+
+[Code]
+function WindowsTerminalExists(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{sys}\wt.exe'));
+end;
