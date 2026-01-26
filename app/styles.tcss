@@ -1,130 +1,85 @@
-/* =========================================================
-   PANTHA TERMINAL 💜
-   Ultra Neon Purple Glow + Aesthetic UI
-   ========================================================= */
+/* Pantha Terminal - Purple Glow Aesthetic */
 
 Screen {
-    background: #040008;
+    background: #050008;
 }
 
-/* OUTER glow aura frame */
-#outer_frame {
+#root {
     width: 100%;
     height: 100%;
-    padding: 1 2;
-
-    background: #040008;
-
-    /* default border (will pulse via classes) */
-    border: heavy #ff2dff;
+    padding: 1;
+    align: center middle;
 }
 
-/* INNER main terminal frame */
-#inner_frame {
-    width: 100%;
-    height: 100%;
-    padding: 1 2;
+#main_box {
+    width: 92%;
+    height: 92%;
+    border: heavy #b100ff;
+    background: #07000d;
+    padding: 1;
+}
 
-    background: #090012;
+#header {
+    height: 3;
+    padding: 0 1;
+    background: #0b0013;
     border: round #7a00ff;
 }
 
-/* Pulse states (outer border changes to simulate glow) */
-.glow1 { border: heavy #ff3cff; }
-.glow2 { border: heavy #c400ff; }
-.glow3 { border: heavy #7a00ff; }
-
-/* Header */
-#header {
-    height: 3;
+#title {
     content-align: center middle;
-
-    background: #07000f;
-    border: round #5b00b8;
-
-    color: #ff7bff;
     text-style: bold;
+    color: #f1c7ff;
 }
 
-/* Splash container */
-#splash_box {
-    height: 1fr;
-    padding: 1 2;
-
-    background: #07000f;
-    border: round #6f00ff;
-
+#subtitle {
     content-align: center middle;
+    color: #c57dff;
 }
 
-/* ASCII logo */
-#splash_logo {
-    color: #ff3cff;
-    text-style: bold;
-}
-
-/* Splash status text */
-#splash_text {
-    color: #d7b3ff;
-    text-style: italic;
-}
-
-/* Output area */
-#output {
+#body {
     height: 1fr;
-    padding: 1 2;
-
-    background: #06000d;
-    border: round #6f00ff;
-
-    color: #f5e6ff;
+    padding: 1;
+    border: round #6b00ff;
+    background: #050008;
 }
 
-/* Input bar */
-#inputbar {
+#ascii {
+    color: #d8a7ff;
+    text-style: bold;
+    content-align: center middle;
+    padding: 1;
+}
+
+#log {
+    height: 8;
+    padding: 1;
+    border: round #3a0060;
+    background: #050008;
+    color: #e6c8ff;
+}
+
+#input_row {
     height: 3;
     padding: 0 1;
-
-    background: #06000d;
-    border: round #6f00ff;
+    border: round #7a00ff;
+    background: #07000d;
 }
 
-/* Prompt label */
-#prompt {
-    width: 10;
-    content-align: left middle;
-
-    color: #ff7bff;
-    text-style: bold;
-}
-
-/* Input field */
 Input {
     width: 1fr;
-    height: 1;
-
-    background: #140020;
-    color: #ffffff;
-
-    border: none;
+    border: heavy #b100ff;
+    background: #050008;
+    color: #f4d6ff;
 }
 
 Input:focus {
-    background: #1b002b;
+    border: heavy #ff00ff;
 }
 
-/* Placeholder text */
-Input.-placeholder {
-    color: #a88ac8;
-}
-
-/* Scrollbar glow */
-RichLog {
-    scrollbar-color: #b300ff;
-    scrollbar-color-hover: #ff3cff;
-}
-
-/* Nice spacing */
-#header, #splash_box, #output, #inputbar {
-    margin: 0 0 1 0;
+#hint {
+    height: 1;
+    color: #a96cff;
+    content-align: left middle;
+    padding-left: 1;
 }
