@@ -17,25 +17,16 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set version (tag or fallback)
+      - name: Set version (tag or fallback) (NO GIT)
         shell: pwsh
         run: |
-          $tag = ""
-          try {
-            $tag = (git describe --tags --abbrev=0 2>$null)
-          } catch {
-            $tag = ""
-          }
+          $ver = "${{ github.ref_name }}"
+          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = "v0.0.0" }
+          if ($ver -notmatch "^v") { $ver = "v0.0.0" }
 
-          if ([string]::IsNullOrWhiteSpace($tag)) {
-            $tag = "v0.0.0"
-          }
-
-          "PANTHA_VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Using version: $tag"
+          "PANTHA_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Using version: $ver"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -86,18 +77,15 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set version (tag or fallback)
+      - name: Set version (tag or fallback) (NO GIT)
         shell: bash
         run: |
-          set +e
-          tag=$(git describe --tags --abbrev=0 2>/dev/null)
-          set -e
-          if [ -z "$tag" ]; then tag="v0.0.0"; fi
-          echo "Using version: $tag"
-          echo "PANTHA_VERSION=$tag" >> $GITHUB_ENV
+          ver="${GITHUB_REF_NAME}"
+          if [[ -z "$ver" ]]; then ver="v0.0.0"; fi
+          if [[ "$ver" != v* ]]; then ver="v0.0.0"; fi
+          echo "Using version: $ver"
+          echo "PANTHA_VERSION=$ver" >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -117,6 +105,11 @@ jobs:
             --onedir \
             app/main.py
 
+      - name: Install runtime tools needed for AppImage packaging
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget file
+
       - name: Create AppDir structure
         run: |
           rm -rf AppDir
@@ -124,9 +117,10 @@ jobs:
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
 
-          cp -r dist/PanthaTerminal/* AppDir/usr/bin/
+          # Copy the whole ONEDIR folder
+          cp -r dist/PanthaTerminal AppDir/usr/bin/
 
-          # AppRun
+          # AppRun must launch the real binary
           cat > AppDir/AppRun << 'EOF'
           #!/bin/bash
           HERE="$(dirname "$(readlink -f "$0")")"
@@ -135,7 +129,7 @@ jobs:
           chmod +x AppDir/AppRun
 
           # Desktop entry
-          cat > AppDir/usr/share/applications/pantha-terminal.desktop << EOF
+          cat > AppDir/usr/share/applications/pantha-terminal.desktop << 'EOF'
           [Desktop Entry]
           Type=Application
           Name=Pantha Terminal
@@ -145,26 +139,26 @@ jobs:
           Terminal=true
           EOF
 
-          # Optional icon
+          # Icon (optional)
           if [ -f "assets/icon.png" ]; then
             cp assets/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/pantha-terminal.png
           fi
 
-      - name: Download appimagetool
+      - name: Download appimagetool (and extract it so NO FUSE is needed)
         run: |
+          rm -f appimagetool-x86_64.AppImage
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
 
-      - name: Make AppImage (NO-FUSE method)
-        run: |
-          # Extract appimagetool so it doesn't need FUSE
+          # Extract so we don't need libfuse2 at all
           ./appimagetool-x86_64.AppImage --appimage-extract
-
           chmod +x squashfs-root/AppRun
 
+      - name: Make AppImage (FUSE-FREE)
+        run: |
           ./squashfs-root/AppRun AppDir "PanthaTerminal-Linux-${{ env.PANTHA_VERSION }}.AppImage"
-
           chmod +x "PanthaTerminal-Linux-${{ env.PANTHA_VERSION }}.AppImage"
+          file "PanthaTerminal-Linux-${{ env.PANTHA_VERSION }}.AppImage"
 
       - name: Upload Linux AppImage
         uses: actions/upload-artifact@v4
@@ -179,18 +173,15 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set version (tag or fallback)
+      - name: Set version (tag or fallback) (NO GIT)
         shell: bash
         run: |
-          set +e
-          tag=$(git describe --tags --abbrev=0 2>/dev/null)
-          set -e
-          if [ -z "$tag" ]; then tag="v0.0.0"; fi
-          echo "Using version: $tag"
-          echo "PANTHA_VERSION=$tag" >> $GITHUB_ENV
+          ver="${GITHUB_REF_NAME}"
+          if [[ -z "$ver" ]]; then ver="v0.0.0"; fi
+          if [[ "$ver" != v* ]]; then ver="v0.0.0"; fi
+          echo "Using version: $ver"
+          echo "PANTHA_VERSION=$ver" >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@v5
