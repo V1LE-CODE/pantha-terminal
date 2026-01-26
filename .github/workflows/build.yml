@@ -1,64 +1,80 @@
-name: Build Pantha Terminal
+name: Pantha Terminal Builds
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  build_windows_setup:
-    name: Build Windows Setup (EXE Installer)
-    runs-on: windows-latest
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Import test
+        run: |
+          python -c "from app.main import PanthaTerminal; print('Pantha import OK')"
+
+
+  windows_setup:
+    name: Build Windows Setup (PanthaSetup.exe)
+    runs-on: windows-latest
+    needs: test
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set version (tag or fallback)
+        shell: pwsh
+        run: |
+          $tag = (git describe --tags --abbrev=0 2>$null)
+          if (-not $tag) { $tag = "v0.0.${{ github.run_number }}" }
+          echo "Using version: $tag"
+          echo "PANTHA_VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps + PyInstaller
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # This sets the version used by Pantha_setup.iss:
-      # OutputBaseFilename=PanthaSetup-Windows-{#MyAppVersion}
-      - name: Set build version (PANTHA_VERSION)
-        shell: pwsh
-        run: |
-          $ver = "v0.0.${{ github.run_number }}"
-          echo "PANTHA_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "PANTHA_VERSION set to $ver"
-
       # IMPORTANT:
-      # - ONEDIR build so Inno Setup copies dist\PanthaTerminal\*
-      # - CONSOLE build so Textual works (fixes Driver must be in application mode)
-      # - Add styles.tcss into app/styles.tcss inside the build
-      - name: Build PanthaTerminal.exe (PyInstaller ONEDIR + CONSOLE)
+      # - ONEDIR build so installer includes _internal folder
+      # - CONSOLE build so Textual works on Windows (fixes instant close)
+      - name: Build PanthaTerminal (Windows ONEDIR + CONSOLE)
         shell: pwsh
         run: |
-          if (!(Test-Path "app\main.py")) {
-            Write-Host "ERROR: app\main.py not found"
-            exit 1
-          }
-
-          if (!(Test-Path "app\styles.tcss")) {
-            Write-Host "ERROR: app\styles.tcss not found"
-            exit 1
-          }
-
-          if (!(Test-Path "assets\icon.ico")) {
-            Write-Host "ERROR: assets\icon.ico not found"
-            exit 1
-          }
+          if (!(Test-Path "assets\icon.ico")) { Write-Host "Missing assets\icon.ico"; exit 1 }
+          if (!(Test-Path "app\styles.tcss")) { Write-Host "Missing app\styles.tcss"; exit 1 }
+          if (!(Test-Path "app\main.py")) { Write-Host "Missing app\main.py"; exit 1 }
+          if (!(Test-Path "installer\Pantha_setup.iss")) { Write-Host "Missing installer\Pantha_setup.iss"; exit 1 }
 
           pyinstaller --noconfirm --clean `
             --name "PanthaTerminal" `
@@ -67,9 +83,12 @@ jobs:
             --add-data "app\styles.tcss;app" `
             app\main.py
 
+          Write-Host "==== DIST CONTENTS ===="
+          Get-ChildItem -Recurse dist
+          Write-Host "======================="
+
           if (!(Test-Path "dist\PanthaTerminal\PanthaTerminal.exe")) {
             Write-Host "ERROR: dist\PanthaTerminal\PanthaTerminal.exe not created"
-            Get-ChildItem dist -Recurse
             exit 1
           }
 
@@ -78,28 +97,89 @@ jobs:
         run: |
           choco install innosetup -y
 
-      - name: Compile Installer (Pantha_setup.iss)
+      - name: Compile Windows Installer
         shell: pwsh
         run: |
-          if (!(Test-Path "installer\Pantha_setup.iss")) {
-            Write-Host "ERROR: installer\Pantha_setup.iss not found"
-            Get-ChildItem installer
-            exit 1
-          }
-
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\Pantha_setup.iss"
 
-          if (!(Test-Path "installer_output")) {
-            Write-Host "ERROR: installer_output folder not created"
-            Get-ChildItem
+          Write-Host "==== INSTALLER OUTPUT ===="
+          if (Test-Path "installer_output") {
+            Get-ChildItem installer_output
+          } else {
+            Write-Host "installer_output folder not found!"
             exit 1
           }
 
-          Write-Host "Installer output files:"
-          Get-ChildItem installer_output
-
-      - name: Upload Windows Installer EXE
+      - name: Upload Windows Setup
         uses: actions/upload-artifact@v4
         with:
-          name: PanthaTerminal-Windows-Installer
-          path: installer_output/*.exe
+          name: PanthaSetup-Windows
+          path: installer_output/*
+
+
+  linux_build:
+    name: Build Linux (Folder Build)
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build PanthaTerminal (Linux ONEDIR)
+        run: |
+          pyinstaller --noconfirm --clean \
+            --name "PanthaTerminal" \
+            --add-data "app/styles.tcss:app" \
+            app/main.py
+
+      - name: Upload Linux Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PanthaTerminal-Linux
+          path: dist/PanthaTerminal/
+
+
+  macos_build:
+    name: Build macOS (Folder Build)
+    runs-on: macos-latest
+    needs: test
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build PanthaTerminal (macOS ONEDIR)
+        run: |
+          pyinstaller --noconfirm --clean \
+            --name "PanthaTerminal" \
+            --add-data "app/styles.tcss:app" \
+            app/main.py
+
+      - name: Upload macOS Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PanthaTerminal-macOS
+          path: dist/PanthaTerminal/
