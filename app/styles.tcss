@@ -1,83 +1,56 @@
 /* ============================================================
-   PANTHA TERMINAL — NEON COCKPIT EDITION
-   Textual SAFE — no unsupported animations
+   PANTHA TERMINAL — NEON CRT FRAME
    ============================================================ */
 
-/* -------------------- GLOBAL -------------------- */
-
 Screen {
-    background: #010003;
+    background: #020005;
     color: #eadcff;
 }
 
-/* OUTER NEON FRAME (THIS IS THE BORDER YOU WANT) */
-#root {
+/* OUTER NEON FRAME (THIS IS THE FIX) */
+#frame {
     height: 100%;
-    padding: 1 2;
-    background: #040008;
-    border: heavy #8a00ff;
-}
-
-/* -------------------- BOOT STATES -------------------- */
-
-.boot-init {
-    background: #000000;
-    border: solid #000000;
-}
-
-.boot-glow {
-    background: #05000b;
-    border: heavy #6a00ff;
-}
-
-.boot-ready {
-    background: #07000d;
+    padding: 1;
+    background: #020005;
     border: heavy #ff4dff;
 }
 
-/* -------------------- HEADER / FOOTER -------------------- */
-
-Header {
-    background: #0b0014;
-    color: #ffb7ff;
-    border: heavy #6a00ff;
-    text-style: bold;
+#frame:focus-within {
+    border: heavy #ff8cff;
 }
 
-Footer {
-    background: #0b0014;
-    color: #b58cff;
+/* INNER ROOT */
+#root {
+    height: 100%;
+    padding: 1 2;
+    background: #050009;
+}
+
+/* HEADER / FOOTER */
+Header, Footer {
+    background: #0f0016;
+    color: #ffb3ff;
     border: heavy #6a00ff;
 }
 
-/* -------------------- BANNER -------------------- */
-
+/* BANNER */
 #banner {
     padding: 1 3;
     margin-bottom: 1;
-    background: #06000c;
-    color: #e7c6ff;
+    background: #080010;
+    color: #ffb7ff;
     border: heavy #ff4dff;
     text-style: bold;
     content-align: center middle;
 }
 
-/* ASCII glow illusion */
-#banner Static {
-    color: #d39cff;
-}
-
-/* -------------------- MAIN LAYOUT -------------------- */
-
+/* MAIN LAYOUT */
 #main_row {
     height: 1fr;
-    width: 100%;
 }
 
-/* -------------------- PANELS -------------------- */
-
-#left_panel,
-#right_panel {
+/* PANELS */
+#left_panel, #right_panel {
     padding: 1;
     background: #05000b;
     border: heavy #6a00ff;
@@ -88,12 +61,7 @@ Footer {
     margin-right: 1;
 }
 
-#right_panel {
-    width: 1fr;
-}
-
-/* -------------------- PANEL TITLES -------------------- */
-
+/* TITLES */
 #panel_title,
 #panel_title2,
 #output_title {
@@ -105,8 +73,7 @@ Footer {
     text-style: bold;
 }
 
-/* -------------------- SYSTEM INFO -------------------- */
-
+/* MODULES */
 #system_info,
 #hotkeys {
     padding: 1;
@@ -116,8 +83,7 @@ Footer {
     border: solid #3d0066;
 }
 
-/* -------------------- LOG CORE -------------------- */
-
+/* LOG */
 #log_wrap {
     height: 1fr;
     padding: 1;
@@ -127,7 +93,6 @@ Footer {
 
 #log_wrap:focus-within {
     border: heavy #ff4dff;
-    background: #06000c;
 }
 
 #log {
@@ -136,8 +101,7 @@ Footer {
     color: #f8edff;
 }
 
-/* -------------------- STATUS BAR -------------------- */
-
+/* STATUS */
 #status_line {
     height: 3;
     padding: 0 1;
@@ -148,8 +112,7 @@ Footer {
     text-style: bold;
 }
 
-/* -------------------- INPUT -------------------- */
-
+/* INPUT */
 #command_input {
     height: 3;
     margin-top: 1;
@@ -164,14 +127,7 @@ Footer {
     border: heavy #ff4dff;
 }
 
-/* ENTER flash */
-.command-fired {
-    border: heavy #ffffff;
-    background: #2a0040;
-}
-
-/* -------------------- CURSOR -------------------- */
-
+/* CURSOR */
 Input > .input--cursor {
     background: #ff4dff;
     color: #050009;
@@ -182,8 +138,7 @@ Input > .input--selection {
     color: #ffffff;
 }
 
-/* -------------------- SCROLLBAR -------------------- */
-
+/* SCROLLBAR */
 Scrollbar {
     background: #090010;
 }
@@ -195,10 +150,3 @@ Scrollbar > .scrollbar--thumb {
 Scrollbar > .scrollbar--thumb:hover {
     background: #ff4dff;
 }
-
-/* -------------------- OUTPUT TYPES -------------------- */
-
-.log-success { color: #caffff; }
-.log-error { color: #ff9b9b; }
-.log-warning { color: #ffd27d; }
-.log-system { color: #b58cff; }
