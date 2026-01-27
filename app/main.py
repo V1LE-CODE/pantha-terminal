@@ -46,6 +46,7 @@ class PanthaTerminal(App):
         super().__init__()
         self.command_history: list[str] = []
         self.history_index = -1
+        self.pantha_mode = False
 
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
         self.hostname = (
@@ -85,18 +86,18 @@ class PanthaTerminal(App):
                             f"• User: {self.username}\n"
                             f"• Host: {self.hostname}\n"
                             "• Pantha Terminal\n"
-                            "• Your GO-TO Terminal\n"
                             "• Purple Aesthetic\n"
-                            "• ASCII / Pantha Mode",
+                            "• Pantham Mode",
                             id="system_info",
                         )
 
                         yield Static("HOTKEYS", id="panel_title2")
                         yield Static(
-                            "ENTER   → run command\n"
-                            "UP/DOWN → history\n"
-                            "CTRL+C  → quit\n"
-                            "CTRL+L  → clear log",
+                            "ENTER     → run command\n"
+                            "UP/DOWN   → history\n"
+                            "CTRL+C    → quit\n"
+                            "CTRL+L    → clear log\n"
+                            "pantham   → toggle mode",
                             id="hotkeys",
                         )
 
@@ -108,7 +109,7 @@ class PanthaTerminal(App):
 
                         yield Static("", id="status_line")
                         yield Input(
-                            placeholder="Type a command... (try: help)",
+                            placeholder="Type a command...",
                             id="command_input",
                         )
 
@@ -123,14 +124,13 @@ class PanthaTerminal(App):
 
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
-        log.write("[#b066ff]Type [bold]help[/] for commands.[/]")
-        log.write("[#b066ff]Try [bold]ascii[/] to enable pantha mode.[/]")
+        log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
         self.update_status("Ready")
 
         self.query_one("#command_input", Input).focus()
 
     # --------------------------------------------------
-    # INPUT HANDLING  ✅ FIX
+    # INPUT HANDLING
     # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -191,9 +191,16 @@ class PanthaTerminal(App):
             self.update_status("Cleared")
             return
 
-        if low == "ascii":
-            self.show_ascii()
-            self.update_status("ASCII shown")
+        if low == "pantham":
+            self.pantha_mode = True
+            self.show_pantha_ascii()
+            self.update_status("PANTHAM MODE ONLINE")
+            return
+
+        if low == "pantham off":
+            self.pantha_mode = False
+            log.write("[#888888]Pantham Mode disengaged.[/]")
+            self.update_status("PANTHAM MODE OFF")
             return
 
         if low in ("exit", "quit"):
@@ -202,22 +209,36 @@ class PanthaTerminal(App):
 
         self.run_shell(cmd)
 
-    def run_shell(self, cmd: str) -> None:
-        log = self.query_one("#log", RichLog)
-        try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            for line in result.stdout.splitlines():
-                log.write(f"[#ffffff]{line}[/]")
-            for line in result.stderr.splitlines():
-                log.write(f"[bold red]{line}[/]")
-            self.update_status("Command executed")
-        except Exception as e:
-            log.write(f"[bold red]{e}[/]")
+    # --------------------------------------------------
+    # PANTHAM MODE ASCII
+    # --------------------------------------------------
 
-    def show_ascii(self) -> None:
-        self.query_one("#log", RichLog).write(
-            "[bold #ff4dff]\nPANTHA MODE ENABLED\n[/]"
-        )
+    def show_pantha_ascii(self) -> None:
+        ascii_art = r"""
+⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣶⣶⣶⣶⣶⣤⣀
+⠀⠀⠀⠀⠀⣠⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⣄
+⠀⠀⠀⢀⣴⣿⣿⡿⠿⠛⠋⠉⠉⠙⠛⠻⢿⣿⣿⣦⡀
+⠀⠀⢠⣾⣿⣿⠟⠁⠀⠀⠀⣠⣴⣶⣦⣄⠀⠀⠙⢿⣿⣧⡀
+⠀⢀⣿⣿⣿⠏⠀⠀⠀⢀⣴⣿⣿⣿⣿⣿⣦⡀⠀⠀⠹⣿⣷
+⠀⣸⣿⣿⡟⠀⠀⠀⢠⣾⣿⣿⣿⣿⣿⣿⣿⣷⡀⠀⠀⢻⣿⣧
+⠀⣿⣿⣿⣧⠀⠀⠀⠘⢿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⠀⣼⣿⣿
+⠀⢿⣿⣿⣿⣦⣀⠀⠀⠀⠙⠻⠿⠿⠿⠟⠋⠀⠀⢀⣴⣿⣿⡿
+⠀⠀⠻⢿⣿⣿⣿⣿⣶⣤⣤⣀⣀⣀⣀⣤⣤⣶⣿⣿⣿⣿⠟⠋
+⠀⠀⠀⠀⠀⠉⠛⠻⠿⢿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠟⠛⠋⠁
+
+██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗
+██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║
+██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
+██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
+╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
+
+      ░▒▓█▓▒░  P A N T H A M   C O R E   A W A K E N E D  ░▒▓█▓▒░
+      ░▒▓█▓▒░  SYSTEM • AI • TERMINAL • CONTROL        ░▒▓█▓▒░
+"""
+
+        log = self.query_one("#log", RichLog)
+        log.write("[bold #ff4dff]" + ascii_art + "[/]")
 
 
 if __name__ == "__main__":
