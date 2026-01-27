@@ -37,7 +37,7 @@ class PanthaBanner(Static):
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Purple ASCII Terminal"
+    SUB_TITLE = "Official Pantha Terminal V0.0.0"
 
     CSS_PATH = None
     status_text: reactive[str] = reactive("Ready")
@@ -85,9 +85,9 @@ class PanthaTerminal(App):
                             f"• User: {self.username}\n"
                             f"• Host: {self.hostname}\n"
                             "• Pantha Terminal\n"
-                            "• Textual UI\n"
-                            "• Purple Glow\n"
-                            "• ASCII Mode",
+                            "• Your GO-TO Terminal\n"
+                            "• Purple Aesthetic\n"
+                            "• ASCII / Pantha Mode",
                             id="system_info",
                         )
 
