@@ -40,13 +40,14 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build PanthaTerminal (Windows ONEDIR + CONSOLE) [FIX Rich Unicode crash]
+      - name: Build PanthaTerminal (Windows ONEDIR + CONSOLE)
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean `
             --name "PanthaTerminal" `
             --onedir `
             --console `
+            --icon assets/icon.ico `
             --collect-all rich `
             --collect-all textual `
             --collect-submodules rich._unicode_data `
@@ -102,7 +103,7 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build macOS folder (PyInstaller ONEDIR) [FIX Rich Unicode crash]
+      - name: Build macOS folder (PyInstaller ONEDIR)
         run: |
           pyinstaller --noconfirm --clean \
             --name "PanthaTerminal" \
