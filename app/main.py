@@ -50,8 +50,12 @@ class PanthaTerminal(App):
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
         self.hostname = (
             os.environ.get("COMPUTERNAME")
-            or os.uname().nodename if hasattr(os, "uname") else "local"
+            or (os.uname().nodename if hasattr(os, "uname") else "local")
         )
+
+    # --------------------------------------------------
+    # STYLES
+    # --------------------------------------------------
 
     def load_tcss(self) -> None:
         dev = Path(__file__).parent / "styles.tcss"
@@ -62,6 +66,10 @@ class PanthaTerminal(App):
         packed = Path(resource_path("app/styles.tcss"))
         if packed.exists():
             self.stylesheet.read(packed)
+
+    # --------------------------------------------------
+    # UI
+    # --------------------------------------------------
 
     def compose(self) -> ComposeResult:
         with Vertical(id="frame"):
@@ -106,6 +114,10 @@ class PanthaTerminal(App):
 
             yield Footer()
 
+    # --------------------------------------------------
+    # LIFECYCLE
+    # --------------------------------------------------
+
     def on_mount(self) -> None:
         self.load_tcss()
 
@@ -117,6 +129,42 @@ class PanthaTerminal(App):
 
         self.query_one("#command_input", Input).focus()
 
+    # --------------------------------------------------
+    # INPUT HANDLING  ✅ FIX
+    # --------------------------------------------------
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        cmd = event.value.strip()
+        event.input.value = ""
+        self.run_command(cmd)
+
+    def on_key(self, event) -> None:
+        inp = self.query_one("#command_input", Input)
+
+        if event.key == "ctrl+l":
+            self.query_one("#log", RichLog).clear()
+            self.update_status("Cleared")
+            event.stop()
+            return
+
+        if event.key == "up" and self.command_history:
+            self.history_index = max(0, self.history_index - 1)
+            inp.value = self.command_history[self.history_index]
+            inp.cursor_position = len(inp.value)
+            event.stop()
+            return
+
+        if event.key == "down" and self.command_history:
+            self.history_index = min(len(self.command_history), self.history_index + 1)
+            inp.value = "" if self.history_index >= len(self.command_history) else self.command_history[self.history_index]
+            inp.cursor_position = len(inp.value)
+            event.stop()
+            return
+
+    # --------------------------------------------------
+    # COMMANDS
+    # --------------------------------------------------
+
     def update_status(self, text: str) -> None:
         self.status_text = text
         self.query_one("#status_line", Static).update(
@@ -127,7 +175,6 @@ class PanthaTerminal(App):
         return f"[#b066ff]{self.username}[/]@[#ff4dff]{self.hostname}[/]:[#ffffff]~$[/]"
 
     def run_command(self, cmd: str) -> None:
-        cmd = cmd.strip()
         if not cmd:
             return
 
@@ -137,17 +184,19 @@ class PanthaTerminal(App):
         log = self.query_one("#log", RichLog)
         log.write(f"{self.prompt()} [#ffffff]{cmd}[/]")
 
-        if cmd.lower() == "clear":
+        low = cmd.lower()
+
+        if low == "clear":
             log.clear()
             self.update_status("Cleared")
             return
 
-        if cmd.lower() == "ascii":
+        if low == "ascii":
             self.show_ascii()
             self.update_status("ASCII shown")
             return
 
-        if cmd.lower() in ("exit", "quit"):
+        if low in ("exit", "quit"):
             self.exit()
             return
 
