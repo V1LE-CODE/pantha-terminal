@@ -47,17 +47,29 @@ Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
 Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
 
 [Files]
-Source: "..\dist\PanthaTerminal\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; ★ ONEDIR build output
+Source: "..\dist\PanthaTerminal\*"; \
+  DestDir: "{app}"; \
+  Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+; ★ Use EXE icon directly
+Name: "{group}\{#MyAppName}"; \
+  Filename: "{app}\{#MyAppExeName}"; \
+  IconFilename: "{app}\{#MyAppExeName}"
+
+Name: "{commondesktop}\{#MyAppName}"; \
+  Filename: "{app}\{#MyAppExeName}"; \
+  IconFilename: "{app}\{#MyAppExeName}"; \
+  Tasks: desktopicon
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
-  ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; \
+  ValueType: string; ValueName: "{#MyAppName}"; \
+  ValueData: """{app}\{#MyAppExeName}"""; \
   Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; \
+  Description: "Launch {#MyAppName}"; \
+  Flags: nowait postinstall skipifsilent
