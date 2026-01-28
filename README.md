@@ -87,24 +87,6 @@ Future integrations may include:
 
 ---
 
-## 🚀 Getting Started
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/pantha-terminal.git
-cd pantha-terminal
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run Pantha Terminal
-python main.py
-```
-
-> Make sure your terminal supports UTF‑8 and ANSI colors for best results.
-
----
-
 ## 🧩 Project Structure
 
 ```
