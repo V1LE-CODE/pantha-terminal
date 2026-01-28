@@ -81,15 +81,15 @@ Future integrations may include:
 
 ---
 
-## 🧩 Project Structure
+## 👨‍💻 Developers
 
 ```
-pantha-terminal/
-├── main.py           # Core application
-├── styles.tcss       # Terminal styling
-├── app/              # Packaged resources
-├── README.md         # This file
-└── requirements.txt
+V1LE-CE
+├── v1ledev          # Core application
+├── missusv1le       # Terminal styling
+
+Anyones Welcome To Join We Focus On A Free Stock Terminal          
+
 ```
 
 ---
