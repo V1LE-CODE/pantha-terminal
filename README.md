@@ -1,6 +1,6 @@
 # 🐾 Pantha Terminal
 
-> **A next‑generation terminal‑style interface for market data, assets, and trading simulations.**
+> **A next‑generation terminal‑style interface for market data, and assets.**
 
 Pantha Terminal is a custom-built, hacker‑aesthetic terminal application designed to explore **stocks, assets, and financial data** through a fast, keyboard‑driven interface. Inspired by classic system terminals and modern market dashboards, Pantha blends style, extensibility, and power.
 
