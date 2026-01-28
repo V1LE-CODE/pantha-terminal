@@ -1,4 +1,4 @@
-# 🐾 Pantha Terminal
+# 🐾🐈‍⬛️ Pantha Terminal
 
 > **A next‑generation terminal‑style interface for market data, and assets.**
 
