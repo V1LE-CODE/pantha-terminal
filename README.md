@@ -73,12 +73,6 @@ This project is designed for developers, learners, and market enthusiasts who wa
 * **Textual** (Rich‑powered TUI)
 * **Rich** (logging, styling, markup)
 
-Future integrations may include:
-
-* Market data APIs
-* Local storage (JSON / SQLite)
-* Chart rendering
-
 ---
 
 ## 👨‍💻 Developers
@@ -86,7 +80,7 @@ Future integrations may include:
 ```
 V1LE-CE
 ├── v1ledev          ● Main Developer
-├── missusv1le       # Assisted Developer
+├── missusv1le       ● Assisted Developer
 
 Anyones Welcome To Join We Focus On A Free Stock Terminal          
 
