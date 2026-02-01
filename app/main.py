@@ -64,13 +64,10 @@ class PanthaTerminal(App):
     CSS_PATH = None
     status_text: reactive[str] = reactive("Ready")
 
-    # --------------------------------------------------
-
     def __init__(self) -> None:
         super().__init__()
 
         self.pantha_mode = False
-        self.market_task: asyncio.Task | None = None
 
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
         self.hostname = (
@@ -78,12 +75,8 @@ class PanthaTerminal(App):
             or (os.uname().nodename if hasattr(os, "uname") else "local")
         )
 
-        # --- Market State ---
         self.prices = {"BTC": None, "ETH": None}
-        self.history = {
-            "BTC": Sparkline(),
-            "ETH": Sparkline(),
-        }
+        self.history = {"BTC": Sparkline(), "ETH": Sparkline()}
 
         self.alerts = AlertManager()
         self.signals = SignalEngine()
@@ -194,18 +187,19 @@ class PanthaTerminal(App):
 
         self.pantha_mode = True
         self.update_status("PANTHAM MODE ONLINE")
-        self.market_task = asyncio.create_task(self.market_loop())
+
+        self.run_worker(
+            self.market_loop(),
+            exclusive=True,
+            name="market",
+        )
 
     def disable_pantha(self) -> None:
         self.pantha_mode = False
         self.update_status("PANTHAM MODE OFF")
 
-        if self.market_task:
-            self.market_task.cancel()
-            self.market_task = None
-
     # --------------------------------------------------
-    # MARKET LOOP
+    # MARKET LOOP (EXE SAFE)
     # --------------------------------------------------
 
     async def market_loop(self) -> None:
@@ -213,21 +207,26 @@ class PanthaTerminal(App):
 
         while self.pantha_mode:
             try:
-                async with websockets.connect(url) as ws:
+                async with websockets.connect(url, ping_interval=20) as ws:
                     async for raw in ws:
+                        if not self.pantha_mode:
+                            return
+
                         msg = json.loads(raw)
                         data = msg["data"]
 
                         symbol = "BTC" if data["s"] == "BTCUSDT" else "ETH"
                         price = float(data["p"])
 
-                        await self.on_price(symbol, price)
+                        await self.call_from_thread(
+                            self.on_price, symbol, price
+                        )
 
             except Exception:
                 await asyncio.sleep(2)
 
     # --------------------------------------------------
-    # PRICE UPDATE
+    # PRICE UPDATE (UI SAFE)
     # --------------------------------------------------
 
     async def on_price(self, symbol: str, price: float) -> None:
@@ -248,11 +247,11 @@ class PanthaTerminal(App):
             f"[bold]{symbol}[/]\n"
             f"${price:,.2f}\n"
             f"{spark}\n"
-            f"Signal: {signal or '—'}",
+            f"Signal: {signal or '—'}"
         )
 
         panel.set_class(True, direction)
-        await asyncio.sleep(0.15)
+        await asyncio.sleep(0.12)
         panel.set_class(False, direction)
 
         self.alerts.check(
