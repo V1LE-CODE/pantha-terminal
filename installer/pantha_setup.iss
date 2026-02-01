@@ -1,117 +1,152 @@
-; --------------------------------------------------
-; METADATA
-; --------------------------------------------------
+/* ============================================================
+   PANTHA TERMINAL — NEON CRT FRAME
+   ============================================================ */
 
-#define MyAppName "Pantha Terminal"
-#define MyAppExeName "PanthaTerminal.exe"
-#define MyAppPublisher "Pantha"
-#define MyAppURL "https://github.com/V1LE-CODE/pantha-terminal"
+Screen {
+    background: #020005;
+    color: #eadcff;
+}
 
-#define RawVersion GetEnv("PANTHA_VERSION")
-#if RawVersion == ""
-  #define MyAppVersion "0.0.0"
-#else
-  #define MyAppVersion RawVersion
-#endif
+/* OUTER NEON FRAME (THIS IS THE FIX) */
+#frame {
+    height: 100%;
+    padding: 1;
+    background: #020005;
+    border: heavy #ff4dff;
+}
 
-; --------------------------------------------------
-; SETUP
-; --------------------------------------------------
+#frame:focus-within {
+    border: heavy #ff8cff;
+}
 
-[Setup]
-AppId={{A7C9A8B4-0F2A-4C5D-9E2A-1A1F9B8D9C01}}
-AppName={#MyAppName}
-AppVersion={#MyAppVersion}
-AppVerName={#MyAppName} {#MyAppVersion}
+/* INNER ROOT */
+#root {
+    height: 100%;
+    padding: 1 2;
+    background: #050009;
+}
 
-AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
+/* HEADER / FOOTER */
+Header, Footer {
+    background: #0f0016;
+    color: #ffb3ff;
+    border: heavy #6a00ff;
+}
 
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+/* BANNER */
+#banner {
+    padding: 1 3;
+    margin-bottom: 1;
+    background: #080010;
+    color: #ffb7ff;
+    border: heavy #ff4dff;
+    text-style: bold;
+    content-align: center middle;
+}
 
-OutputDir=..\installer_output
-OutputBaseFilename=PanthaSetup-Windows-{#MyAppVersion}
+/* MAIN LAYOUT */
+#main_row {
+    height: 1fr;
+}
 
-SetupIconFile=..\assets\icon.ico
-UninstallDisplayIcon={app}\{#MyAppExeName}
+/* PANELS */
+#left_panel, #right_panel {
+    padding: 1;
+    background: #05000b;
+    border: heavy #6a00ff;
+}
 
-Compression=lzma2
-SolidCompression=yes
-WizardStyle=modern
+#left_panel {
+    width: 34;
+    margin-right: 1;
+}
 
-WizardResizable=no
-DisableProgramGroupPage=yes
+/* TITLES */
+#panel_title,
+#panel_title2,
+#output_title {
+    padding: 0 2;
+    margin-bottom: 1;
+    background: #180024;
+    color: #ff9bff;
+    border: heavy #9b00ff;
+    text-style: bold;
+}
 
-PrivilegesRequired=admin
-ArchitecturesInstallIn64BitMode=x64
+/* MODULES */
+#system_info,
+#hotkeys {
+    padding: 1;
+    margin-bottom: 1;
+    background: #07000d;
+    color: #d9c0ff;
+    border: solid #3d0066;
+}
 
-UsePreviousAppDir=yes
-UsePreviousGroup=yes
+/* LOG */
+#log_wrap {
+    height: 1fr;
+    padding: 1;
+    background: #020004;
+    border: heavy #b300ff;
+}
 
-DisableDirPage=auto
-DisableReadyMemo=no
-DisableFinishedPage=no
+#log_wrap:focus-within {
+    border: heavy #ff4dff;
+}
 
-CloseApplications=yes
-RestartApplications=no
+#log {
+    padding: 1 2;
+    background: #090012;
+    color: #f8edff;
+}
 
-; --------------------------------------------------
-; LANGUAGES
-; --------------------------------------------------
+/* STATUS */
+#status_line {
+    height: 3;
+    padding: 0 1;
+    margin-top: 1;
+    background: #100016;
+    color: #b58cff;
+    border: solid #6a00ff;
+    text-style: bold;
+}
 
-[Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"
+/* INPUT */
+#command_input {
+    height: 3;
+    margin-top: 1;
+    padding: 0 1;
+    background: #14001f;
+    color: #ffffff;
+    border: heavy #9b00ff;
+}
 
-; --------------------------------------------------
-; TASKS
-; --------------------------------------------------
+#command_input:focus {
+    background: #220035;
+    border: heavy #ff4dff;
+}
 
-[Tasks]
-Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
-Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
+/* CURSOR */
+Input > .input--cursor {
+    background: #ff4dff;
+    color: #050009;
+}
 
-; --------------------------------------------------
-; FILES
-; --------------------------------------------------
+Input > .input--selection {
+    background: #7a00ff;
+    color: #ffffff;
+}
 
-; ★ ONEDIR PyInstaller output
-[Files]
-Source: "..\dist\PanthaTerminal\*"; \
-  DestDir: "{app}"; \
-  Flags: recursesubdirs createallsubdirs ignoreversion
+/* SCROLLBAR */
+Scrollbar {
+    background: #090010;
+}
 
-; --------------------------------------------------
-; ICONS
-; --------------------------------------------------
+Scrollbar > .scrollbar--thumb {
+    background: #7a00ff;
+}
 
-[Icons]
-Name: "{group}\{#MyAppName}"; \
-  Filename: "{app}\{#MyAppExeName}"
-
-Name: "{commondesktop}\{#MyAppName}"; \
-  Filename: "{app}\{#MyAppExeName}"; \
-  Tasks: desktopicon
-
-; --------------------------------------------------
-; REGISTRY (STARTUP OPTION)
-; --------------------------------------------------
-
-[Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
-  ValueType: string; \
-  ValueName: "{#MyAppName}"; \
-  ValueData: """{app}\{#MyAppExeName}"""; \
-  Flags: uninsdeletevalue; \
-  Tasks: startup
-
-; --------------------------------------------------
-; RUN
-; --------------------------------------------------
-
-[Run]
-Filename: "{app}\{#MyAppExeName}"; \
-  Description: "Launch {#MyAppName}"; \
-  Flags: nowait postinstall skipifsilent
+Scrollbar > .scrollbar--thumb:hover {
+    background: #ff4dff;
+}
