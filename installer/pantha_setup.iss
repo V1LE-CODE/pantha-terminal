@@ -1,152 +1,75 @@
-/* ============================================================
-   PANTHA TERMINAL — NEON CRT FRAME
-   ============================================================ */
+#define MyAppName "Pantha Terminal"
+#define MyAppExeName "PanthaTerminal.exe"
+#define MyAppPublisher "Pantha"
+#define MyAppURL "https://github.com/V1LE-CODE/pantha-terminal"
 
-Screen {
-    background: #020005;
-    color: #eadcff;
-}
+#define MyAppVersion GetEnv("PANTHA_VERSION")
+#if MyAppVersion == ""
+  #define MyAppVersion "v0.0.0"
+#endif
 
-/* OUTER NEON FRAME (THIS IS THE FIX) */
-#frame {
-    height: 100%;
-    padding: 1;
-    background: #020005;
-    border: heavy #ff4dff;
-}
+[Setup]
+AppId={{A7C9A8B4-0F2A-4C5D-9E2A-1A1F9B8D9C01}}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}
 
-#frame:focus-within {
-    border: heavy #ff8cff;
-}
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
 
-/* INNER ROOT */
-#root {
-    height: 100%;
-    padding: 1 2;
-    background: #050009;
-}
+OutputDir=..\installer_output
+OutputBaseFilename=PanthaSetup-Windows-{#MyAppVersion}
 
-/* HEADER / FOOTER */
-Header, Footer {
-    background: #0f0016;
-    color: #ffb3ff;
-    border: heavy #6a00ff;
-}
+Compression=lzma
+SolidCompression=yes
+WizardStyle=modern
 
-/* BANNER */
-#banner {
-    padding: 1 3;
-    margin-bottom: 1;
-    background: #080010;
-    color: #ffb7ff;
-    border: heavy #ff4dff;
-    text-style: bold;
-    content-align: center middle;
-}
+SetupIconFile=..\assets\icon.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 
-/* MAIN LAYOUT */
-#main_row {
-    height: 1fr;
-}
+WizardResizable=no
+DisableProgramGroupPage=yes
 
-/* PANELS */
-#left_panel, #right_panel {
-    padding: 1;
-    background: #05000b;
-    border: heavy #6a00ff;
-}
+PrivilegesRequired=admin
+ArchitecturesInstallIn64BitMode=x64
 
-#left_panel {
-    width: 34;
-    margin-right: 1;
-}
+UsePreviousAppDir=yes
+UsePreviousGroup=yes
 
-/* TITLES */
-#panel_title,
-#panel_title2,
-#output_title {
-    padding: 0 2;
-    margin-bottom: 1;
-    background: #180024;
-    color: #ff9bff;
-    border: heavy #9b00ff;
-    text-style: bold;
-}
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
 
-/* MODULES */
-#system_info,
-#hotkeys {
-    padding: 1;
-    margin-bottom: 1;
-    background: #07000d;
-    color: #d9c0ff;
-    border: solid #3d0066;
-}
+[Tasks]
+Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
+Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
 
-/* LOG */
-#log_wrap {
-    height: 1fr;
-    padding: 1;
-    background: #020004;
-    border: heavy #b300ff;
-}
+[Files]
+; ★ ONEDIR build output
+Source: "..\dist\PanthaTerminal\*"; \
+  DestDir: "{app}"; \
+  Flags: recursesubdirs createallsubdirs ignoreversion
 
-#log_wrap:focus-within {
-    border: heavy #ff4dff;
-}
+[Icons]
+; ★ Use EXE icon directly
+Name: "{group}\{#MyAppName}"; \
+  Filename: "{app}\{#MyAppExeName}"; \
+  IconFilename: "{app}\{#MyAppExeName}"
 
-#log {
-    padding: 1 2;
-    background: #090012;
-    color: #f8edff;
-}
+Name: "{commondesktop}\{#MyAppName}"; \
+  Filename: "{app}\{#MyAppExeName}"; \
+  IconFilename: "{app}\{#MyAppExeName}"; \
+  Tasks: desktopicon
 
-/* STATUS */
-#status_line {
-    height: 3;
-    padding: 0 1;
-    margin-top: 1;
-    background: #100016;
-    color: #b58cff;
-    border: solid #6a00ff;
-    text-style: bold;
-}
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
+  ValueType: string; ValueName: "{#MyAppName}"; \
+  ValueData: """{app}\{#MyAppExeName}"""; \
+  Flags: uninsdeletevalue; Tasks: startup
 
-/* INPUT */
-#command_input {
-    height: 3;
-    margin-top: 1;
-    padding: 0 1;
-    background: #14001f;
-    color: #ffffff;
-    border: heavy #9b00ff;
-}
-
-#command_input:focus {
-    background: #220035;
-    border: heavy #ff4dff;
-}
-
-/* CURSOR */
-Input > .input--cursor {
-    background: #ff4dff;
-    color: #050009;
-}
-
-Input > .input--selection {
-    background: #7a00ff;
-    color: #ffffff;
-}
-
-/* SCROLLBAR */
-Scrollbar {
-    background: #090010;
-}
-
-Scrollbar > .scrollbar--thumb {
-    background: #7a00ff;
-}
-
-Scrollbar > .scrollbar--thumb:hover {
-    background: #ff4dff;
-}
+[Run]
+Filename: "{app}\{#MyAppExeName}"; \
+  Description: "Launch {#MyAppName}"; \
+  Flags: nowait postinstall skipifsilent
