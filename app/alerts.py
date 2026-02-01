@@ -1,12 +1,48 @@
 class AlertManager:
     def __init__(self):
-        self.alerts = []
+        # alert = {
+        #   "symbol": "BTC",
+        #   "target": 45000.0,
+        #   "direction": "above" | "below",
+        #   "once": True
+        # }
+        self.alerts: list[dict] = []
 
-    def add(self, symbol, target):
-        self.alerts.append((symbol.upper(), target))
+    def add(
+        self,
+        symbol: str,
+        target: float,
+        direction: str = "above",
+        once: bool = True,
+    ) -> None:
+        self.alerts.append(
+            {
+                "symbol": symbol.upper(),
+                "target": float(target),
+                "direction": direction,
+                "once": once,
+            }
+        )
 
-    def check(self, symbol, price, notify):
-        for a in self.alerts[:]:
-            if a[0] == symbol and price >= a[1]:
-                notify(f"🔔 {symbol} HIT {a[1]:,.2f}")
-                self.alerts.remove(a)
+    def check(self, symbol: str, price: float, notify) -> None:
+        symbol = symbol.upper()
+
+        for alert in self.alerts[:]:
+            if alert["symbol"] != symbol:
+                continue
+
+            hit = False
+
+            if alert["direction"] == "above" and price >= alert["target"]:
+                hit = True
+            elif alert["direction"] == "below" and price <= alert["target"]:
+                hit = True
+
+            if hit:
+                notify(
+                    f"🔔 {symbol} {alert['direction'].upper()} "
+                    f"{alert['target']:,.2f} (now {price:,.2f})"
+                )
+
+                if alert["once"]:
+                    self.alerts.remove(alert)
