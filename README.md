@@ -25,7 +25,7 @@ This project is currently in **early development** and focused on building a str
 * Mode‑based visual output
 * Minimal, clean layout inspired by hacker terminals
 
-### 🐆 Pantha Mode
+### 🐆 Pantham Mode
 
 * Toggleable terminal mode
 * Displays a unique ASCII system banner
@@ -34,8 +34,8 @@ This project is currently in **early development** and focused on building a str
 ### ⚙️ Core Commands
 
 * `clear` — Clear terminal output
-* `pantha` — Enable Pantha Mode
-* `pantha off` — Disable Pantha Mode
+* `pantham` — Enable Pantha Mode
+* `pantham off` — Disable Pantha Mode
 * `exit` / `quit` — Exit the terminal
 
 *(More commands coming soon)*
