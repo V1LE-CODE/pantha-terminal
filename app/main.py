@@ -27,8 +27,7 @@ class PanthaBanner(Static):
      ^---^
     ( . . )
     (___'_)
-     /   \
-v0  ( | | )___
+v1  ( | | )___
    (__m_m__)__}
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
@@ -44,7 +43,7 @@ v0  ( | | )___
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal V0.0.0"
+    SUB_TITLE = "Official Pantha Terminal V1.0.0"
 
     CSS_PATH = None
     status_text: reactive[str] = reactive("Ready")
