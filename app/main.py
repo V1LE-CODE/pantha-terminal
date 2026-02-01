@@ -2,25 +2,14 @@ from __future__ import annotations
 
 import os
 import sys
-import json
-import asyncio
+import subprocess
 from pathlib import Path
 
-import websockets
-
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 
-from app.charts import Sparkline
-from app.alerts import AlertManager
-from app.signals import SignalEngine
-
-
-# --------------------------------------------------
-# PACKAGING
-# --------------------------------------------------
 
 def resource_path(relative: str) -> str:
     try:
@@ -30,43 +19,40 @@ def resource_path(relative: str) -> str:
     return os.path.join(base_path, relative)
 
 
-# --------------------------------------------------
-# BANNER
-# --------------------------------------------------
-
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
             r"""
-⠀⠀⠀⠀⠀⠀⠀/\_/\ 
-   ____/ o o \ 
- /~____  =ø= / 
-(______)__m_m)
+
+     ^---^
+    ( . . )
+    (___'_)
+     /   \
+v0  ( | | )___
+   (__m_m__)__}
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
 ██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
-░▒▓█▓▒░  P A N T H A   T E R M I N A L  ░▒▓█▓▒░
+
+        ░▒▓█▓▒░  P A N T H A   T E R M I N A L  ░▒▓█▓▒░
 """
         )
 
 
-# --------------------------------------------------
-# MAIN APP
-# --------------------------------------------------
-
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Real-Time Market Terminal"
+    SUB_TITLE = "Official Pantha Terminal V0.0.0"
 
     CSS_PATH = None
     status_text: reactive[str] = reactive("Ready")
 
     def __init__(self) -> None:
         super().__init__()
-
+        self.command_history: list[str] = []
+        self.history_index = -1
         self.pantha_mode = False
 
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
@@ -74,12 +60,6 @@ class PanthaTerminal(App):
             os.environ.get("COMPUTERNAME")
             or (os.uname().nodename if hasattr(os, "uname") else "local")
         )
-
-        self.prices = {"BTC": None, "ETH": None}
-        self.history = {"BTC": Sparkline(), "ETH": Sparkline()}
-
-        self.alerts = AlertManager()
-        self.signals = SignalEngine()
 
     # --------------------------------------------------
     # STYLES
@@ -103,26 +83,42 @@ class PanthaTerminal(App):
         with Vertical(id="frame"):
             yield Header(show_clock=True)
 
-            with Vertical():
-                yield PanthaBanner()
+            with Vertical(id="root"):
+                yield PanthaBanner(id="banner")
 
-                with Horizontal():
-                    with Vertical(id="left"):
-                        yield Static("SYSTEM", classes="title")
+                with Horizontal(id="main_row"):
+                    with Vertical(id="left_panel"):
+                        yield Static("SYSTEM", id="panel_title")
                         yield Static(
-                            f"User: {self.username}\n"
-                            f"Host: {self.hostname}\n"
-                            "Mode: Pantham",
+                            f"• User: {self.username}\n"
+                            f"• Host: {self.hostname}\n"
+                            "• Pantha Terminal\n"
+                            "• Purple Aesthetic\n"
+                            "• Pantham Mode",
                             id="system_info",
                         )
 
-                    with Vertical(id="market"):
-                        yield Static("", id="btc_panel")
-                        yield Static("", id="eth_panel")
+                        yield Static("HOTKEYS", id="panel_title2")
+                        yield Static(
+                            "ENTER     → run command\n"
+                            "UP/DOWN   → history\n"
+                            "CTRL+C    → quit\n"
+                            "CTRL+L    → clear log\n"
+                            "pantham   → toggle mode",
+                            id="hotkeys",
+                        )
 
-                yield RichLog(id="log", markup=True, highlight=True)
-                yield Static("", id="status")
-                yield Input(placeholder="Command…", id="input")
+                    with Vertical(id="right_panel"):
+                        yield Static("OUTPUT", id="output_title")
+
+                        with ScrollableContainer(id="log_wrap"):
+                            yield RichLog(id="log", highlight=True, markup=True, wrap=True)
+
+                        yield Static("", id="status_line")
+                        yield Input(
+                            placeholder="Type a command...",
+                            id="command_input",
+                        )
 
             yield Footer()
 
@@ -132,138 +128,118 @@ class PanthaTerminal(App):
 
     def on_mount(self) -> None:
         self.load_tcss()
-        self.query_one("#input", Input).focus()
-        self.log("[bold #ff4dff]Pantha Terminal Online.[/]")
-        self.log("Type [bold]pantham[/] to awaken the market.")
+
+        log = self.query_one("#log", RichLog)
+        log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
+        log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
         self.update_status("Ready")
 
+        self.query_one("#command_input", Input).focus()
+
     # --------------------------------------------------
-    # INPUT
+    # INPUT HANDLING
     # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
         event.input.value = ""
+        self.run_command(cmd)
 
-        self.log(f"[#b066ff]{self.username}@{self.hostname}[/] $ {cmd}")
+    def on_key(self, event) -> None:
+        inp = self.query_one("#command_input", Input)
 
-        if cmd == "pantham":
-            self.enable_pantha()
+        if event.key == "ctrl+l":
+            self.query_one("#log", RichLog).clear()
+            self.update_status("Cleared")
+            event.stop()
             return
 
-        if cmd == "pantham off":
-            self.disable_pantha()
+        if event.key == "up" and self.command_history:
+            self.history_index = max(0, self.history_index - 1)
+            inp.value = self.command_history[self.history_index]
+            inp.cursor_position = len(inp.value)
+            event.stop()
             return
 
-        if cmd.startswith("alert"):
-            _, sym, price = cmd.split()
-            self.alerts.add(sym, float(price))
-            self.update_status(f"Alert set: {sym.upper()} @ {price}")
+        if event.key == "down" and self.command_history:
+            self.history_index = min(len(self.command_history), self.history_index + 1)
+            inp.value = "" if self.history_index >= len(self.command_history) else self.command_history[self.history_index]
+            inp.cursor_position = len(inp.value)
+            event.stop()
             return
-
-        if cmd in ("exit", "quit"):
-            self.exit()
 
     # --------------------------------------------------
-    # STATUS / LOG
+    # COMMANDS
     # --------------------------------------------------
-
-    def log(self, msg: str) -> None:
-        self.query_one("#log", RichLog).write(msg)
 
     def update_status(self, text: str) -> None:
         self.status_text = text
-        self.query_one("#status", Static).update(
-            f"[#ff4dff]STATUS:[/] {text}"
+        self.query_one("#status_line", Static).update(
+            f"[#ff4dff]STATUS:[/] [#ffffff]{text}[/]"
         )
 
-    # --------------------------------------------------
-    # PANTHAM MODE
-    # --------------------------------------------------
+    def prompt(self) -> str:
+        return f"[#b066ff]{self.username}[/]@[#ff4dff]{self.hostname}[/]:[#ffffff]~$[/]"
 
-    def enable_pantha(self) -> None:
-        if self.pantha_mode:
+    def run_command(self, cmd: str) -> None:
+        if not cmd:
             return
 
-        self.pantha_mode = True
-        self.update_status("PANTHAM MODE ONLINE")
+        self.command_history.append(cmd)
+        self.history_index = len(self.command_history)
 
-        self.run_worker(
-            self.market_loop(),
-            exclusive=True,
-            name="market",
-        )
+        log = self.query_one("#log", RichLog)
+        log.write(f"{self.prompt()} [#ffffff]{cmd}[/]")
 
-    def disable_pantha(self) -> None:
-        self.pantha_mode = False
-        self.update_status("PANTHAM MODE OFF")
+        low = cmd.lower()
 
-    # --------------------------------------------------
-    # MARKET LOOP (EXE SAFE)
-    # --------------------------------------------------
+        if low == "clear":
+            log.clear()
+            self.update_status("Cleared")
+            return
 
-    async def market_loop(self) -> None:
-        url = "wss://stream.binance.com:9443/stream?streams=btcusdt@trade/ethusdt@trade"
+        if low == "pantham":
+            self.pantha_mode = True
+            self.show_pantha_ascii()
+            self.update_status("PANTHAM MODE ONLINE")
+            return
 
-        while self.pantha_mode:
-            try:
-                async with websockets.connect(url, ping_interval=20) as ws:
-                    async for raw in ws:
-                        if not self.pantha_mode:
-                            return
+        if low == "pantham off":
+            self.pantha_mode = False
+            log.write("[#888888]Pantham Mode disengaged.[/]")
+            self.update_status("PANTHAM MODE OFF")
+            return
 
-                        msg = json.loads(raw)
-                        data = msg["data"]
+        if low in ("exit", "quit"):
+            self.exit()
+            return
 
-                        symbol = "BTC" if data["s"] == "BTCUSDT" else "ETH"
-                        price = float(data["p"])
-
-                        await self.call_from_thread(
-                            self.on_price, symbol, price
-                        )
-
-            except Exception:
-                await asyncio.sleep(2)
+        self.run_shell(cmd)
 
     # --------------------------------------------------
-    # PRICE UPDATE (UI SAFE)
+    # PANTHAM MODE ASCII
     # --------------------------------------------------
 
-    async def on_price(self, symbol: str, price: float) -> None:
-        last = self.prices[symbol]
-        self.prices[symbol] = price
-        self.history[symbol].add(price)
+    def show_pantha_ascii(self) -> None:
+        ascii_art = r"""
+⠀⠀⠀⠀⠀⠀⠀/\_/\
+   ____/ o o \
+ /~____  =ø= /
+(______)__m_m)
+██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗
+██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║
+██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
+██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
+╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
 
-        panel = self.query_one(f"#{symbol.lower()}_panel", Static)
+      ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
+      ░▒▓█▓▒░  SYSTEM • TERMINAL • CONTROL      ░▒▓█▓▒░
+"""
 
-        direction = ""
-        if last:
-            direction = "up" if price > last else "down"
+        log = self.query_one("#log", RichLog)
+        log.write("[bold #ff4dff]" + ascii_art + "[/]")
 
-        signal = self.signals.update(symbol, price)
-        spark = self.history[symbol].render()
-
-        panel.update(
-            f"[bold]{symbol}[/]\n"
-            f"${price:,.2f}\n"
-            f"{spark}\n"
-            f"Signal: {signal or '—'}"
-        )
-
-        panel.set_class(True, direction)
-        await asyncio.sleep(0.12)
-        panel.set_class(False, direction)
-
-        self.alerts.check(
-            symbol,
-            price,
-            lambda m: self.log(f"[bold red]{m}[/]"),
-        )
-
-
-# --------------------------------------------------
-# ENTRY
-# --------------------------------------------------
 
 if __name__ == "__main__":
     PanthaTerminal().run()
