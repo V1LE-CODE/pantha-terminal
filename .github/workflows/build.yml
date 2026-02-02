@@ -15,15 +15,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # --------------------------------------------------
-      # CHECKOUT
-      # --------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --------------------------------------------------
-      # VERSION FROM TAG
-      # --------------------------------------------------
       - name: Set version (from tag or fallback)
         shell: pwsh
         run: |
@@ -34,17 +28,11 @@ jobs:
           Write-Host "Using version: $ver"
           "PANTHA_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      # --------------------------------------------------
-      # PYTHON
-      # --------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # --------------------------------------------------
-      # DEPENDENCIES
-      # --------------------------------------------------
       - name: Install dependencies + PyInstaller
         shell: pwsh
         run: |
@@ -52,10 +40,7 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # --------------------------------------------------
-      # PYINSTALLER BUILD (TEXTUAL SAFE)
-      # --------------------------------------------------
-      - name: Build PanthaTerminal
+      - name: Build PanthaTerminal (ONEDIR, console, icon embedded)
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean `
@@ -63,14 +48,11 @@ jobs:
             --onedir `
             --console `
             --icon "assets/icon.ico" `
-            --collect-all textual `
             --collect-all rich `
+            --collect-all textual `
             --collect-submodules rich._unicode_data `
             app/main.py
 
-      # --------------------------------------------------
-      # INNO SETUP
-      # --------------------------------------------------
       - name: Install Inno Setup
         shell: pwsh
         run: |
@@ -86,9 +68,6 @@ jobs:
         run: |
           iscc installer/pantha_setup.iss
 
-      # --------------------------------------------------
-      # UPLOAD ARTIFACT
-      # --------------------------------------------------
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
         with:
