@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import requests
+
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
@@ -14,7 +17,7 @@ from textual.worker import work
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
-            """
+            r"""
      ^---^
     ( . . )
     (___'_ )
@@ -31,15 +34,35 @@ v1  ( | | )___
 
 
 # --------------------------------------------------
-# CRYPTO PANEL (FROZEN-SAFE)
+# PANTHAM ASCII
 # --------------------------------------------------
 
-class CryptoPanel(Vertical):
+PANTHAM_ASCII = r"""
+⠀⠀⠀⠀⠀⠀⠀/\_/\ 
+   ____/ o o \
+ /~____  =ø= /
+(______)__m_m)
+██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗
+██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║
+██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
+██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
+╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
+
+      ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
+"""
+
+
+# --------------------------------------------------
+# LIVE CRYPTO TERMINAL (PANTHAM ONLY)
+# --------------------------------------------------
+
+class PanthamCryptoTerminal(Vertical):
     currency: reactive[str] = reactive("usd")
 
     def compose(self) -> ComposeResult:
         yield Static(
-            "[bold #ff4dff]PANTHA CRYPTO MONITOR[/]\n"
+            "[bold #ff4dff]PANTHAM LIVE CRYPTO TERMINAL[/]\n"
             "[#888888]C → currency | ESC → close[/]"
         )
         self.btc = Static(id="btc")
@@ -51,30 +74,28 @@ class CryptoPanel(Vertical):
         self.refresh_prices()
         self.set_interval(10, self.refresh_prices)
 
-    @work(thread=True, exclusive=True)
+    @work(thread=True)
     def refresh_prices(self) -> None:
         try:
-            # 🔒 Lazy import (CRITICAL for PyInstaller)
-            import requests
-
             r = requests.get(
                 "https://api.coingecko.com/api/v3/simple/price",
                 params={
                     "ids": "bitcoin,ethereum",
                     "vs_currencies": self.currency,
                 },
-                timeout=10,
-            ).json()
+                timeout=8,
+            )
+            data = r.json()
 
             self.call_from_thread(
                 self.btc.update,
                 f"[bold #b066ff]BITCOIN[/]\n"
-                f"[#ff4dff]{r['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]",
+                f"[#ff4dff]{data['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]",
             )
             self.call_from_thread(
                 self.eth.update,
                 f"[bold #b066ff]ETHEREUM[/]\n"
-                f"[#ff4dff]{r['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]",
+                f"[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]",
             )
 
         except Exception:
@@ -88,9 +109,9 @@ class CryptoPanel(Vertical):
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal V1.0.0"
+    SUB_TITLE = "Official Pantha Terminal v1.0.0"
 
-    pantha_mode: reactive[bool] = reactive(False)
+    pantham_mode: reactive[bool] = reactive(False)
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -101,14 +122,16 @@ class PanthaTerminal(App):
             with Horizontal():
                 with Vertical(id="left"):
                     yield Static("SYSTEM")
-                    yield Static("• Pantham Mode\n• Crypto Enabled")
+                    yield Static(
+                        "• Pantham Mode\n"
+                        "• Live Crypto\n"
+                        "• Secure Terminal"
+                    )
 
                 with Vertical(id="right"):
                     yield Static("OUTPUT")
-
                     with ScrollableContainer():
                         yield RichLog(id="log", markup=True)
-
                     yield Input(placeholder="Type a command...", id="input")
 
         yield Footer()
@@ -116,8 +139,12 @@ class PanthaTerminal(App):
     def on_mount(self) -> None:
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
-        log.write("[#b066ff]Type pantham to awaken the core.[/]")
+        log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
         self.query_one("#input", Input).focus()
+
+    # --------------------------------------------------
+    # COMMAND HANDLING
+    # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip().lower()
@@ -127,18 +154,17 @@ class PanthaTerminal(App):
         log.write(f"> {cmd}")
 
         if cmd == "pantham":
-            self.pantha_mode = True
-            log.write("[bold #ff4dff]PANTHAM MODE ONLINE[/]")
+            self.pantham_mode = True
+            log.write(f"[bold #ff4dff]{PANTHAM_ASCII}[/]")
             return
 
         if cmd == "stock":
-            if not self.pantha_mode:
+            if not self.pantham_mode:
                 log.write("[red]Pantham Mode required.[/]")
                 return
 
-            if not self.query(CryptoPanel):
-                self.query_one("#right").mount(CryptoPanel())
-
+            if not self.query(PanthamCryptoTerminal):
+                self.query_one("#right").mount(PanthamCryptoTerminal())
             return
 
         if cmd in ("exit", "quit"):
@@ -147,17 +173,17 @@ class PanthaTerminal(App):
 
         log.write("[#888888]Unknown command.[/]")
 
+    # --------------------------------------------------
+    # HOTKEYS
+    # --------------------------------------------------
+
     def on_key(self, event) -> None:
-        panel = self.query_one(CryptoPanel, default=None)
+        panel = self.query_one(PanthamCryptoTerminal, default=None)
         if not panel:
             return
 
         if event.key.lower() == "c":
-            panel.currency = {
-                "usd": "aud",
-                "aud": "eur",
-                "eur": "usd",
-            }[panel.currency]
+            panel.currency = "aud" if panel.currency == "usd" else "usd"
 
         if event.key == "escape":
             panel.remove()
