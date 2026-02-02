@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import requests
-
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
@@ -19,7 +17,7 @@ class PanthaBanner(Static):
             """
      ^---^
     ( . . )
-    (___'_)
+    (___'_ )
 v1  ( | | )___
    (__m_m__)__}
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
@@ -33,7 +31,7 @@ v1  ( | | )___
 
 
 # --------------------------------------------------
-# CRYPTO PANEL (STABLE)
+# CRYPTO PANEL (FROZEN-SAFE)
 # --------------------------------------------------
 
 class CryptoPanel(Vertical):
@@ -51,30 +49,32 @@ class CryptoPanel(Vertical):
 
     def on_mount(self) -> None:
         self.refresh_prices()
-        self.set_interval(6, self.refresh_prices)
+        self.set_interval(10, self.refresh_prices)
 
-    @work(thread=True)
+    @work(thread=True, exclusive=True)
     def refresh_prices(self) -> None:
         try:
+            # 🔒 Lazy import (CRITICAL for PyInstaller)
+            import requests
+
             r = requests.get(
                 "https://api.coingecko.com/api/v3/simple/price",
                 params={
                     "ids": "bitcoin,ethereum",
                     "vs_currencies": self.currency,
                 },
-                timeout=6,
-            )
-            data = r.json()
+                timeout=10,
+            ).json()
 
             self.call_from_thread(
                 self.btc.update,
                 f"[bold #b066ff]BITCOIN[/]\n"
-                f"[#ff4dff]{data['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]",
+                f"[#ff4dff]{r['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]",
             )
             self.call_from_thread(
                 self.eth.update,
                 f"[bold #b066ff]ETHEREUM[/]\n"
-                f"[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]",
+                f"[#ff4dff]{r['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]",
             )
 
         except Exception:
@@ -105,8 +105,10 @@ class PanthaTerminal(App):
 
                 with Vertical(id="right"):
                     yield Static("OUTPUT")
-                    self.output = ScrollableContainer(RichLog(id="log", markup=True))
-                    yield self.output
+
+                    with ScrollableContainer():
+                        yield RichLog(id="log", markup=True)
+
                     yield Input(placeholder="Type a command...", id="input")
 
         yield Footer()
