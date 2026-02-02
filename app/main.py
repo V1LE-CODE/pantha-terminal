@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import os
-import sys
-import asyncio
 import requests
 
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
+from textual.worker import work
 
 
 # --------------------------------------------------
@@ -18,10 +16,10 @@ from textual.reactive import reactive
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
-            r"""
+            """
      ^---^
     ( . . )
-    (___'_ )
+    (___'_)
 v1  ( | | )___
    (__m_m__)__}
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
@@ -35,62 +33,53 @@ v1  ( | | )___
 
 
 # --------------------------------------------------
-# CRYPTO PANEL (EMBEDDED, SAFE)
+# CRYPTO PANEL (STABLE)
 # --------------------------------------------------
 
 class CryptoPanel(Vertical):
     currency: reactive[str] = reactive("usd")
 
-    def on_mount(self) -> None:
-        self.btc = Static("", id="btc")
-        self.eth = Static("", id="eth")
-
-        self.mount(
-            Static(
-                "[bold #ff4dff]PANTHA CRYPTO MONITOR[/]\n"
-                "[#888888]C → currency | ESC → close[/]"
-            )
+    def compose(self) -> ComposeResult:
+        yield Static(
+            "[bold #ff4dff]PANTHA CRYPTO MONITOR[/]\n"
+            "[#888888]C → currency | ESC → close[/]"
         )
-        self.mount(self.btc)
-        self.mount(self.eth)
+        self.btc = Static(id="btc")
+        self.eth = Static(id="eth")
+        yield self.btc
+        yield self.eth
 
-        self.set_interval(6, self.refresh_prices)
+    def on_mount(self) -> None:
         self.refresh_prices()
+        self.set_interval(6, self.refresh_prices)
 
-    async def refresh_prices(self) -> None:
+    @work(thread=True)
+    def refresh_prices(self) -> None:
         try:
-            data = await asyncio.to_thread(
-                lambda: requests.get(
-                    "https://api.coingecko.com/api/v3/simple/price",
-                    params={
-                        "ids": "bitcoin,ethereum",
-                        "vs_currencies": self.currency,
-                    },
-                    timeout=8,
-                ).json()
+            r = requests.get(
+                "https://api.coingecko.com/api/v3/simple/price",
+                params={
+                    "ids": "bitcoin,ethereum",
+                    "vs_currencies": self.currency,
+                },
+                timeout=6,
             )
+            data = r.json()
 
-            self.btc.update(
-                f"[bold #b066ff]BITCOIN[/]\n[#ff4dff]{data['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]"
+            self.call_from_thread(
+                self.btc.update,
+                f"[bold #b066ff]BITCOIN[/]\n"
+                f"[#ff4dff]{data['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]",
             )
-            self.eth.update(
-                f"[bold #b066ff]ETHEREUM[/]\n[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]"
+            self.call_from_thread(
+                self.eth.update,
+                f"[bold #b066ff]ETHEREUM[/]\n"
+                f"[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]",
             )
 
         except Exception:
-            self.btc.update("[red]BTC API ERROR[/]")
-            self.eth.update("[red]ETH API ERROR[/]")
-
-    def on_key(self, event) -> None:
-        if event.key.lower() == "c":
-            self.currency = {
-                "usd": "aud",
-                "aud": "eur",
-                "eur": "usd",
-            }[self.currency]
-
-        if event.key == "escape":
-            self.remove()
+            self.call_from_thread(self.btc.update, "[red]BTC API ERROR[/]")
+            self.call_from_thread(self.eth.update, "[red]ETH API ERROR[/]")
 
 
 # --------------------------------------------------
@@ -116,8 +105,8 @@ class PanthaTerminal(App):
 
                 with Vertical(id="right"):
                     yield Static("OUTPUT")
-                    with ScrollableContainer():
-                        yield RichLog(id="log", markup=True)
+                    self.output = ScrollableContainer(RichLog(id="log", markup=True))
+                    yield self.output
                     yield Input(placeholder="Type a command...", id="input")
 
         yield Footer()
@@ -146,7 +135,7 @@ class PanthaTerminal(App):
                 return
 
             if not self.query(CryptoPanel):
-                self.mount(CryptoPanel())
+                self.query_one("#right").mount(CryptoPanel())
 
             return
 
@@ -155,6 +144,21 @@ class PanthaTerminal(App):
             return
 
         log.write("[#888888]Unknown command.[/]")
+
+    def on_key(self, event) -> None:
+        panel = self.query_one(CryptoPanel, default=None)
+        if not panel:
+            return
+
+        if event.key.lower() == "c":
+            panel.currency = {
+                "usd": "aud",
+                "aud": "eur",
+                "eur": "usd",
+            }[panel.currency]
+
+        if event.key == "escape":
+            panel.remove()
 
 
 # --------------------------------------------------
