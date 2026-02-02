@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import os
 import requests
-
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
-from textual.worker import work
 
 
 # --------------------------------------------------
@@ -54,7 +51,7 @@ PANTHAM_ASCII = r"""
 
 
 # --------------------------------------------------
-# LIVE CRYPTO TERMINAL (PANTHAM ONLY)
+# LIVE CRYPTO PANEL (SAFE)
 # --------------------------------------------------
 
 class PanthamCryptoTerminal(Vertical):
@@ -63,19 +60,22 @@ class PanthamCryptoTerminal(Vertical):
     def compose(self) -> ComposeResult:
         yield Static(
             "[bold #ff4dff]PANTHAM LIVE CRYPTO TERMINAL[/]\n"
-            "[#888888]C → currency | ESC → close[/]"
+            "[#888888]C → USD/AUD | ESC → close[/]"
         )
-        self.btc = Static(id="btc")
-        self.eth = Static(id="eth")
+        self.btc = Static()
+        self.eth = Static()
         yield self.btc
         yield self.eth
 
     def on_mount(self) -> None:
-        self.refresh_prices()
-        self.set_interval(10, self.refresh_prices)
+        self.refresh()
+        self._timer = self.set_interval(12, self.refresh)
 
-    @work(thread=True)
-    def refresh_prices(self) -> None:
+    def on_unmount(self) -> None:
+        if hasattr(self, "_timer"):
+            self._timer.stop()
+
+    def refresh(self) -> None:
         try:
             r = requests.get(
                 "https://api.coingecko.com/api/v3/simple/price",
@@ -83,24 +83,22 @@ class PanthamCryptoTerminal(Vertical):
                     "ids": "bitcoin,ethereum",
                     "vs_currencies": self.currency,
                 },
-                timeout=8,
+                timeout=6,
             )
             data = r.json()
 
-            self.call_from_thread(
-                self.btc.update,
+            self.btc.update(
                 f"[bold #b066ff]BITCOIN[/]\n"
-                f"[#ff4dff]{data['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]",
+                f"[#ff4dff]{data['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]"
             )
-            self.call_from_thread(
-                self.eth.update,
+            self.eth.update(
                 f"[bold #b066ff]ETHEREUM[/]\n"
-                f"[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]",
+                f"[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]"
             )
 
         except Exception:
-            self.call_from_thread(self.btc.update, "[red]BTC API ERROR[/]")
-            self.call_from_thread(self.eth.update, "[red]ETH API ERROR[/]")
+            self.btc.update("[red]BTC API ERROR[/]")
+            self.eth.update("[red]ETH API ERROR[/]")
 
 
 # --------------------------------------------------
@@ -122,11 +120,7 @@ class PanthaTerminal(App):
             with Horizontal():
                 with Vertical(id="left"):
                     yield Static("SYSTEM")
-                    yield Static(
-                        "• Pantham Mode\n"
-                        "• Live Crypto\n"
-                        "• Secure Terminal"
-                    )
+                    yield Static("• Pantham Mode\n• Live Crypto\n• Secure Terminal")
 
                 with Vertical(id="right"):
                     yield Static("OUTPUT")
@@ -141,10 +135,6 @@ class PanthaTerminal(App):
         log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
         log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
         self.query_one("#input", Input).focus()
-
-    # --------------------------------------------------
-    # COMMAND HANDLING
-    # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip().lower()
@@ -172,10 +162,6 @@ class PanthaTerminal(App):
             return
 
         log.write("[#888888]Unknown command.[/]")
-
-    # --------------------------------------------------
-    # HOTKEYS
-    # --------------------------------------------------
 
     def on_key(self, event) -> None:
         panel = self.query_one(PanthamCryptoTerminal, default=None)
