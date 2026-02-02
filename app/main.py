@@ -2,27 +2,14 @@ from __future__ import annotations
 
 import os
 import sys
-import subprocess
-import json
-import urllib.request
-from pathlib import Path
+import asyncio
+import requests
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical, ScrollableContainer
+from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
-
-
-# --------------------------------------------------
-# UTILS
-# --------------------------------------------------
-
-def resource_path(relative: str) -> str:
-    try:
-        base_path = sys._MEIPASS  # type: ignore[attr-defined]
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative)
+from textual.screen import Screen
 
 
 # --------------------------------------------------
@@ -35,37 +22,25 @@ class PanthaBanner(Static):
             r"""
      ^---^
     ( . . )
-    (___'_)
+    (___'_ )
 v1  ( | | )___
    (__m_m__)__}
+
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
 ██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
-
-        ░▒▓█▓▒░  P A N T H A   T E R M I N A L  ░▒▓█▓▒░
 """
         )
 
 
 # --------------------------------------------------
-# CRYPTO TERMINAL
+# CRYPTO SCREEN
 # --------------------------------------------------
 
-class CryptoPriceBox(Static):
-    def update_price(self, name: str, price: float, currency: str) -> None:
-        self.update(
-            f"[bold #b066ff]{name}[/]\n"
-            f"[#ff4dff]{price:,.2f} {currency.upper()}[/]"
-        )
-
-
-class PanthaCryptoTerminal(App):
-    TITLE = "Pantha Crypto Terminal"
-    SUB_TITLE = "BTC • ETH • LIVE"
-
+class CryptoScreen(Screen):
     currency: reactive[str] = reactive("usd")
 
     def compose(self) -> ComposeResult:
@@ -74,46 +49,45 @@ class PanthaCryptoTerminal(App):
         with Vertical(id="crypto_root"):
             yield Static(
                 "[bold #ff4dff]PANTHA CRYPTO MONITOR[/]\n"
-                "[#888888]Press C to change currency (USD / AUD / EUR)[/]",
-                id="crypto_title",
+                "[#888888]C → change currency | ESC → back[/]"
             )
 
             with Horizontal():
-                self.btc = CryptoPriceBox()
-                self.eth = CryptoPriceBox()
+                self.btc = Static("", id="btc_box")
+                self.eth = Static("", id="eth_box")
                 yield self.btc
                 yield self.eth
 
         yield Footer()
 
     def on_mount(self) -> None:
+        self.set_interval(6, self.refresh_prices)
         self.refresh_prices()
-        self.set_interval(5, self.refresh_prices)
 
-    def refresh_prices(self) -> None:
+    async def refresh_prices(self) -> None:
         try:
-            url = (
-                "https://api.coingecko.com/api/v3/simple/price"
-                f"?ids=bitcoin,ethereum&vs_currencies={self.currency}"
+            data = await asyncio.to_thread(
+                lambda: requests.get(
+                    "https://api.coingecko.com/api/v3/simple/price",
+                    params={
+                        "ids": "bitcoin,ethereum",
+                        "vs_currencies": self.currency,
+                    },
+                    timeout=8,
+                ).json()
             )
 
-            with urllib.request.urlopen(url, timeout=5) as r:
-                data = json.loads(r.read().decode())
-
-            self.btc.update_price(
-                "BITCOIN",
-                data["bitcoin"][self.currency],
-                self.currency,
+            self.btc.update(
+                f"[bold #b066ff]BITCOIN[/]\n[#ff4dff]{data['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]"
             )
-            self.eth.update_price(
-                "ETHEREUM",
-                data["ethereum"][self.currency],
-                self.currency,
+            self.eth.update(
+                f"[bold #b066ff]ETHEREUM[/]\n[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]"
             )
 
         except Exception:
-            self.btc.update("[red]API ERROR[/]")
-            self.eth.update("[red]API ERROR[/]")
+            # Soft failure (do NOT destroy UI)
+            self.btc.update("[red]BTC API ERROR[/]")
+            self.eth.update("[red]ETH API ERROR[/]")
 
     def on_key(self, event) -> None:
         if event.key.lower() == "c":
@@ -122,6 +96,9 @@ class PanthaCryptoTerminal(App):
                 "aud": "eur",
                 "eur": "usd",
             }[self.currency]
+
+        if event.key == "escape":
+            self.app.pop_screen()
 
 
 # --------------------------------------------------
@@ -132,111 +109,53 @@ class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal V1.0.0"
 
-    status_text: reactive[str] = reactive("Ready")
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.command_history: list[str] = []
-        self.history_index = -1
-        self.pantha_mode = False
-
-        self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
-        self.hostname = (
-            os.environ.get("COMPUTERNAME")
-            or (os.uname().nodename if hasattr(os, "uname") else "local")
-        )
-
-    # ---------------- UI ----------------
+    pantha_mode: reactive[bool] = reactive(False)
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="frame"):
-            yield Header(show_clock=True)
+        yield Header(show_clock=True)
 
-            with Vertical(id="root"):
-                yield PanthaBanner()
+        with Vertical():
+            yield PanthaBanner()
 
-                with Horizontal():
-                    with Vertical(id="left_panel"):
-                        yield Static("SYSTEM")
-                        yield Static(
-                            f"• User: {self.username}\n"
-                            f"• Host: {self.hostname}\n"
-                            "• Pantham Mode",
-                        )
+            with Horizontal():
+                with Vertical(id="left"):
+                    yield Static("SYSTEM")
+                    yield Static("• Pantham Mode\n• Crypto Enabled")
 
-                        yield Static("HOTKEYS")
-                        yield Static(
-                            "pantham → enable mode\n"
-                            "stock   → crypto terminal\n"
-                            "CTRL+L  → clear\n"
-                        )
+                with Vertical():
+                    yield Static("OUTPUT")
+                    with ScrollableContainer():
+                        yield RichLog(id="log", markup=True)
+                    yield Input(placeholder="Type a command...", id="input")
 
-                    with Vertical(id="right_panel"):
-                        yield Static("OUTPUT")
-
-                        with ScrollableContainer():
-                            yield RichLog(id="log", markup=True)
-
-                        yield Static("", id="status_line")
-                        yield Input(placeholder="Type a command...", id="command_input")
-
-            yield Footer()
+        yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one("#log", RichLog).write(
-            "[bold #ff4dff]Pantha Terminal Online.[/]\n"
-            "[#b066ff]Type pantham to awaken the core.[/]"
-        )
-        self.query_one("#command_input", Input).focus()
-
-    # ---------------- INPUT ----------------
+        log = self.query_one("#log", RichLog)
+        log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
+        log.write("[#b066ff]Type pantham to awaken the core.[/]")
+        self.query_one("#input", Input).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        cmd = event.value.strip()
+        cmd = event.value.strip().lower()
         event.input.value = ""
-        self.run_command(cmd)
-
-    # ---------------- COMMANDS ----------------
-
-    def update_status(self, text: str) -> None:
-        self.query_one("#status_line", Static).update(
-            f"[#ff4dff]STATUS:[/] {text}"
-        )
-
-    def prompt(self) -> str:
-        return f"[#b066ff]{self.username}[/]@[#ff4dff]{self.hostname}[/]:~$"
-
-    def run_command(self, cmd: str) -> None:
-        if not cmd:
-            return
 
         log = self.query_one("#log", RichLog)
-        log.write(f"{self.prompt()} {cmd}")
+        log.write(f"> {cmd}")
 
-        low = cmd.lower()
-
-        if low == "pantham":
+        if cmd == "pantham":
             self.pantha_mode = True
             log.write("[bold #ff4dff]PANTHAM MODE ONLINE[/]")
-            self.update_status("PANTHAM MODE")
             return
 
-        if low == "pantham off":
-            self.pantha_mode = False
-            log.write("[#888888]Pantham Mode disengaged.[/]")
-            self.update_status("NORMAL MODE")
-            return
-
-        if low == "stock":
+        if cmd == "stock":
             if not self.pantha_mode:
-                log.write("[red]Access denied. Pantham Mode required.[/]")
+                log.write("[red]Pantham Mode required.[/]")
                 return
-
-            log.write("[#b066ff]Launching Pantha Crypto Terminal...[/]")
-            subprocess.Popen([sys.executable, __file__, "--crypto"])
+            self.push_screen(CryptoScreen())
             return
 
-        if low in ("exit", "quit"):
+        if cmd in ("exit", "quit"):
             self.exit()
             return
 
@@ -248,7 +167,4 @@ class PanthaTerminal(App):
 # --------------------------------------------------
 
 if __name__ == "__main__":
-    if "--crypto" in sys.argv:
-        PanthaCryptoTerminal().run()
-    else:
-        PanthaTerminal().run()
+    PanthaTerminal().run()
