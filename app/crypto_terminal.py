@@ -3,9 +3,8 @@ from __future__ import annotations
 import json
 import urllib.request
 
-from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal
-from textual.widgets import Header, Footer, Static
+from textual.widgets import Static
 from textual.reactive import reactive
 
 
@@ -22,34 +21,26 @@ class PriceBox(Static):
 
 
 # --------------------------------------------------
-# CRYPTO TERMINAL
+# CRYPTO PANEL (WIDGET, NOT APP)
 # --------------------------------------------------
 
-class CryptoTerminal(App):
-    TITLE = "Pantha Crypto Terminal"
-    SUB_TITLE = "BTC • ETH • Live Market"
-
+class CryptoPanel(Vertical):
     currency: reactive[str] = reactive("usd")
 
-    def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-
-        with Vertical(id="root"):
-            yield Static(
-                "[bold #b066ff]PANTHA CRYPTO MONITOR[/]\n"
-                "[#888888]Press C to cycle currency (USD / AUD / EUR)[/]",
-                id="title",
-            )
-
-            with Horizontal():
-                self.btc = PriceBox(id="btc")
-                self.eth = PriceBox(id="eth")
-                yield self.btc
-                yield self.eth
-
-        yield Footer()
-
     def on_mount(self) -> None:
+        self.mount(
+            Static(
+                "[bold #b066ff]PANTHA CRYPTO MONITOR[/]\n"
+                "[#888888]C → currency | ESC → close[/]"
+            )
+        )
+
+        with Horizontal():
+            self.btc = PriceBox(id="btc")
+            self.eth = PriceBox(id="eth")
+            self.mount(self.btc)
+            self.mount(self.eth)
+
         self.refresh_prices()
         self.set_interval(5, self.refresh_prices)
 
@@ -86,10 +77,5 @@ class CryptoTerminal(App):
                 "eur": "usd",
             }[self.currency]
 
-
-# --------------------------------------------------
-# ENTRY
-# --------------------------------------------------
-
-if __name__ == "__main__":
-    CryptoTerminal().run()
+        if event.key == "escape":
+            self.remove()
