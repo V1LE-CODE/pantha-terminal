@@ -66,7 +66,7 @@ ESC Close panel
 
 
 # --------------------------------------------------
-# CRYPTO PANEL (SELF-CONTAINED INPUT HANDLING)
+# CRYPTO PANEL
 # --------------------------------------------------
 
 class PanthamCryptoTerminal(Vertical):
@@ -144,51 +144,55 @@ class PanthaTerminal(App):
                     yield Static("[bold]SYSTEM[/]")
                     yield Static("• Pantham Mode\n• Live Crypto")
 
-                with Vertical(id="right"):
-                    with ScrollableContainer():
-                        yield RichLog(id="log", markup=True)
-                    self.input = Input(placeholder="Type a command...")
-                    yield self.input
+                # ✅ STORE REFERENCE
+                self.right_panel = Vertical()
+                yield self.right_panel
 
         yield Footer()
 
     def on_mount(self) -> None:
-        log = self.query_one(RichLog)
-        log.write("[bold #ff4dff]Pantha Terminal Online[/]")
-        log.write("[#b066ff]Type [bold]help[/] to begin[/]")
+        self.log = RichLog(markup=True)
+        self.input = Input(placeholder="Type a command...")
+
+        self.right_panel.mount(
+            ScrollableContainer(self.log),
+            self.input,
+        )
+
+        self.log.write("[bold #ff4dff]Pantha Terminal Online[/]")
+        self.log.write("[#b066ff]Type [bold]help[/] to begin[/]")
         self.input.focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip().lower()
         event.input.value = ""
 
-        log = self.query_one(RichLog)
-        log.write(f"> {cmd}")
+        self.log.write(f"> {cmd}")
 
         if not cmd:
             return
 
         if cmd == "help":
-            log.write(HELP_TEXT)
+            self.log.write(HELP_TEXT)
 
         elif cmd == "pantham":
             self.pantham_mode = True
-            log.write(f"[bold #ff4dff]{PANTHAM_ASCII}[/]")
+            self.log.write(f"[bold #ff4dff]{PANTHAM_ASCII}[/]")
 
         elif cmd == "stock":
             if not self.pantham_mode:
-                log.write("[red]Pantham Mode required[/]")
+                self.log.write("[red]Pantham Mode required[/]")
             else:
-                existing = self.query_one(PanthamCryptoTerminal, default=None)
-                if existing:
-                    existing.remove()
-                self.query_one("#right").mount(PanthamCryptoTerminal())
+                existing = self.right_panel.query(PanthamCryptoTerminal)
+                for panel in existing:
+                    panel.remove()
+                self.right_panel.mount(PanthamCryptoTerminal())
 
         elif cmd in ("exit", "quit"):
             self.exit()
 
         else:
-            log.write("[#888888]Unknown command (type help)[/]")
+            self.log.write("[#888888]Unknown command (type help)[/]")
 
 
 # --------------------------------------------------
