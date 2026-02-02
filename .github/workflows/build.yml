@@ -11,36 +11,34 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows Setup (PanthaSetup.exe)
     runs-on: windows-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set version (from tag or fallback)
+      - name: Set version
         shell: pwsh
         run: |
           $ver = "v0.0.0"
           if ("${{ github.ref_type }}" -eq "tag") {
             $ver = "${{ github.ref_name }}"
           }
-          Write-Host "Using version: $ver"
-          "PANTHA_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "PANTHA_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies + PyInstaller
+      - name: Install dependencies
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build PanthaTerminal (ONEDIR, console, icon embedded)
+      - name: Build PanthaTerminal (CORRECT ONEDIR)
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean `
@@ -48,27 +46,26 @@ jobs:
             --onedir `
             --console `
             --icon "assets/icon.ico" `
-            --collect-all rich `
+            --add-data "app/styles.tcss;app" `
+            --add-data "assets;assets" `
             --collect-all textual `
-            --collect-submodules rich._unicode_data `
+            --collect-all rich `
+            --paths app `
             app/main.py
 
       - name: Install Inno Setup
         shell: pwsh
-        run: |
-          choco install innosetup -y
+        run: choco install innosetup -y
 
-      - name: Ensure installer_output folder exists
+      - name: Create installer_output
         shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path installer_output | Out-Null
+        run: New-Item -ItemType Directory -Force installer_output | Out-Null
 
-      - name: Compile Windows Installer
+      - name: Compile Installer
         shell: pwsh
-        run: |
-          iscc installer/pantha_setup.iss
+        run: iscc installer/pantha_setup.iss
 
-      - name: Upload Windows Installer
+      - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
           name: PanthaSetup-Windows-${{ env.PANTHA_VERSION }}
