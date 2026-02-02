@@ -9,7 +9,6 @@ from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
-from textual.screen import Screen
 
 
 # --------------------------------------------------
@@ -25,7 +24,6 @@ class PanthaBanner(Static):
     (___'_ )
 v1  ( | | )___
    (__m_m__)__}
-
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
@@ -37,30 +35,25 @@ v1  ( | | )___
 
 
 # --------------------------------------------------
-# CRYPTO SCREEN
+# CRYPTO PANEL (EMBEDDED, SAFE)
 # --------------------------------------------------
 
-class CryptoScreen(Screen):
+class CryptoPanel(Vertical):
     currency: reactive[str] = reactive("usd")
 
-    def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-
-        with Vertical(id="crypto_root"):
-            yield Static(
-                "[bold #ff4dff]PANTHA CRYPTO MONITOR[/]\n"
-                "[#888888]C → change currency | ESC → back[/]"
-            )
-
-            with Horizontal():
-                self.btc = Static("", id="btc_box")
-                self.eth = Static("", id="eth_box")
-                yield self.btc
-                yield self.eth
-
-        yield Footer()
-
     def on_mount(self) -> None:
+        self.btc = Static("", id="btc")
+        self.eth = Static("", id="eth")
+
+        self.mount(
+            Static(
+                "[bold #ff4dff]PANTHA CRYPTO MONITOR[/]\n"
+                "[#888888]C → currency | ESC → close[/]"
+            )
+        )
+        self.mount(self.btc)
+        self.mount(self.eth)
+
         self.set_interval(6, self.refresh_prices)
         self.refresh_prices()
 
@@ -85,7 +78,6 @@ class CryptoScreen(Screen):
             )
 
         except Exception:
-            # Soft failure (do NOT destroy UI)
             self.btc.update("[red]BTC API ERROR[/]")
             self.eth.update("[red]ETH API ERROR[/]")
 
@@ -98,7 +90,7 @@ class CryptoScreen(Screen):
             }[self.currency]
 
         if event.key == "escape":
-            self.app.pop_screen()
+            self.remove()
 
 
 # --------------------------------------------------
@@ -122,7 +114,7 @@ class PanthaTerminal(App):
                     yield Static("SYSTEM")
                     yield Static("• Pantham Mode\n• Crypto Enabled")
 
-                with Vertical():
+                with Vertical(id="right"):
                     yield Static("OUTPUT")
                     with ScrollableContainer():
                         yield RichLog(id="log", markup=True)
@@ -152,7 +144,10 @@ class PanthaTerminal(App):
             if not self.pantha_mode:
                 log.write("[red]Pantham Mode required.[/]")
                 return
-            self.push_screen(CryptoScreen())
+
+            if not self.query(CryptoPanel):
+                self.mount(CryptoPanel())
+
             return
 
         if cmd in ("exit", "quit"):
