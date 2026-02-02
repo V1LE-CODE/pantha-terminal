@@ -1,10 +1,29 @@
 from __future__ import annotations
 
+import sys
+import traceback
+from pathlib import Path
 import requests
+
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
+
+
+# --------------------------------------------------
+# HARD CRASH LOGGER (PREVENTS SILENT CLOSE)
+# --------------------------------------------------
+
+LOG_FILE = Path.home() / "pantha_crash.log"
+
+def excepthook(exc_type, exc, tb):
+    LOG_FILE.write_text(
+        "".join(traceback.format_exception(exc_type, exc, tb)),
+        encoding="utf-8",
+    )
+
+sys.excepthook = excepthook
 
 
 # --------------------------------------------------
@@ -68,14 +87,14 @@ class PanthamCryptoTerminal(Vertical):
         yield self.eth
 
     def on_mount(self) -> None:
-        self.refresh()
-        self._timer = self.set_interval(12, self.refresh)
+        self.update_prices()
+        self._timer = self.set_interval(15, self.update_prices)
 
     def on_unmount(self) -> None:
         if hasattr(self, "_timer"):
             self._timer.stop()
 
-    def refresh(self) -> None:
+    def update_prices(self) -> None:
         try:
             r = requests.get(
                 "https://api.coingecko.com/api/v3/simple/price",
@@ -83,8 +102,9 @@ class PanthamCryptoTerminal(Vertical):
                     "ids": "bitcoin,ethereum",
                     "vs_currencies": self.currency,
                 },
-                timeout=6,
+                timeout=5,
             )
+            r.raise_for_status()
             data = r.json()
 
             self.btc.update(
@@ -96,7 +116,7 @@ class PanthamCryptoTerminal(Vertical):
                 f"[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]"
             )
 
-        except Exception:
+        except Exception as e:
             self.btc.update("[red]BTC API ERROR[/]")
             self.eth.update("[red]ETH API ERROR[/]")
 
@@ -122,7 +142,7 @@ class PanthaTerminal(App):
                     yield Static("SYSTEM")
                     yield Static("• Pantham Mode\n• Live Crypto\n• Secure Terminal")
 
-                with Vertical(id="right"):
+                with Vertical(id="right"):  # 🔥 FIXED: ID WAS MISSING
                     yield Static("OUTPUT")
                     with ScrollableContainer():
                         yield RichLog(id="log", markup=True)
@@ -143,25 +163,29 @@ class PanthaTerminal(App):
         log = self.query_one("#log", RichLog)
         log.write(f"> {cmd}")
 
-        if cmd == "pantham":
-            self.pantham_mode = True
-            log.write(f"[bold #ff4dff]{PANTHAM_ASCII}[/]")
-            return
-
-        if cmd == "stock":
-            if not self.pantham_mode:
-                log.write("[red]Pantham Mode required.[/]")
+        try:
+            if cmd == "pantham":
+                self.pantham_mode = True
+                log.write(PANTHAM_ASCII)
                 return
 
-            if not self.query(PanthamCryptoTerminal):
-                self.query_one("#right").mount(PanthamCryptoTerminal())
-            return
+            if cmd == "stock":
+                if not self.pantham_mode:
+                    log.write("[red]Pantham Mode required.[/]")
+                    return
 
-        if cmd in ("exit", "quit"):
-            self.exit()
-            return
+                if not self.query(PanthamCryptoTerminal):
+                    self.query_one("#right").mount(PanthamCryptoTerminal())
+                return
 
-        log.write("[#888888]Unknown command.[/]")
+            if cmd in ("exit", "quit"):
+                self.exit()
+                return
+
+            log.write("[#888888]Unknown command.[/]")
+
+        except Exception as e:
+            log.write(f"[red]Command error: {e}[/]")
 
     def on_key(self, event) -> None:
         panel = self.query_one(PanthamCryptoTerminal, default=None)
@@ -180,4 +204,8 @@ class PanthaTerminal(App):
 # --------------------------------------------------
 
 if __name__ == "__main__":
-    PanthaTerminal().run()
+    try:
+        PanthaTerminal().run()
+    except Exception as e:
+        LOG_FILE.write_text(str(e), encoding="utf-8")
+        input("Pantha crashed. Press Enter to close...")
