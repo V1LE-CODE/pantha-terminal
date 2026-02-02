@@ -1,27 +1,29 @@
 from __future__ import annotations
 
-import asyncio
-import requests
+import json
+import urllib.request
 
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal
 from textual.widgets import Header, Footer, Static
 from textual.reactive import reactive
 
-COINS = {
-    "bitcoin": "BTC",
-    "ethereum": "ETH",
-}
 
+# --------------------------------------------------
+# PRICE BOX
+# --------------------------------------------------
 
 class PriceBox(Static):
-    price: reactive[str] = reactive("Loading...")
-    change: reactive[str] = reactive("")
+    def update_price(self, name: str, price: float, currency: str) -> None:
+        self.update(
+            f"[bold #b066ff]{name}[/]\n"
+            f"[#ff4dff]{price:,.2f} {currency.upper()}[/]"
+        )
 
-    def update_price(self, price: float, currency: str) -> None:
-        self.price = f"{price:,.2f} {currency.upper()}"
-        self.update(f"[bold #ff4dff]{self.price}[/]")
 
+# --------------------------------------------------
+# CRYPTO TERMINAL
+# --------------------------------------------------
 
 class CryptoTerminal(App):
     TITLE = "Pantha Crypto Terminal"
@@ -35,43 +37,46 @@ class CryptoTerminal(App):
         with Vertical(id="root"):
             yield Static(
                 "[bold #b066ff]PANTHA CRYPTO MONITOR[/]\n"
-                "[#888888]Press C to cycle currency[/]",
+                "[#888888]Press C to cycle currency (USD / AUD / EUR)[/]",
                 id="title",
             )
 
             with Horizontal():
-                self.btc = PriceBox("BTC", id="btc")
-                self.eth = PriceBox("ETH", id="eth")
+                self.btc = PriceBox(id="btc")
+                self.eth = PriceBox(id="eth")
                 yield self.btc
                 yield self.eth
 
         yield Footer()
 
-    async def on_mount(self) -> None:
+    def on_mount(self) -> None:
+        self.refresh_prices()
         self.set_interval(5, self.refresh_prices)
 
-    async def refresh_prices(self) -> None:
+    def refresh_prices(self) -> None:
         try:
-            url = "https://api.coingecko.com/api/v3/simple/price"
-            params = {
-                "ids": ",".join(COINS.keys()),
-                "vs_currencies": self.currency,
-            }
+            url = (
+                "https://api.coingecko.com/api/v3/simple/price"
+                f"?ids=bitcoin,ethereum&vs_currencies={self.currency}"
+            )
 
-            data = requests.get(url, params=params, timeout=5).json()
+            with urllib.request.urlopen(url, timeout=5) as r:
+                data = json.loads(r.read().decode())
 
             self.btc.update_price(
+                "BITCOIN",
                 data["bitcoin"][self.currency],
                 self.currency,
             )
             self.eth.update_price(
+                "ETHEREUM",
                 data["ethereum"][self.currency],
                 self.currency,
             )
 
         except Exception:
-            self.btc.update("[red]API Error[/]")
-            self.eth.update("[red]API Error[/]")
+            self.btc.update("[red]API ERROR[/]")
+            self.eth.update("[red]API ERROR[/]")
 
     def on_key(self, event) -> None:
         if event.key.lower() == "c":
@@ -81,6 +86,10 @@ class CryptoTerminal(App):
                 "eur": "usd",
             }[self.currency]
 
+
+# --------------------------------------------------
+# ENTRY
+# --------------------------------------------------
 
 if __name__ == "__main__":
     CryptoTerminal().run()
