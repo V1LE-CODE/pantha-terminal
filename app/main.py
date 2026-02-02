@@ -32,7 +32,7 @@ v1  ( | | )___
 
 
 # --------------------------------------------------
-# PANTHAM ASCII
+# ASCII
 # --------------------------------------------------
 
 PANTHAM_ASCII = r"""
@@ -41,37 +41,32 @@ PANTHAM_ASCII = r"""
  /~____  =ø= /
 (______)__m_m)
 
-      ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
+░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
 """
-
-
-# --------------------------------------------------
-# HELP TEXT
-# --------------------------------------------------
 
 HELP_TEXT = """
-[bold #ff4dff]AVAILABLE COMMANDS[/]
+[bold #ff4dff]COMMANDS[/]
 
-[bold]help[/]
-  Show this help menu
+help
+  Show this menu
 
-[bold]pantham[/]
-  Awaken Pantham Mode (required for advanced systems)
+pantham
+  Enable Pantham Mode
 
-[bold]stock[/]
-  Open live crypto terminal (Pantham Mode only)
+stock
+  Open live crypto panel (Pantham Mode required)
 
-[bold]exit[/], [bold]quit[/]
-  Close Pantha Terminal
+exit / quit
+  Close terminal
 
-[bold #ff4dff]CRYPTO PANEL KEYS[/]
-  [bold]C[/]     Toggle USD / AUD
-  [bold]ESC[/]   Close crypto panel
+[bold #ff4dff]CRYPTO PANEL[/]
+C   Toggle USD / AUD
+ESC Close panel
 """
 
 
 # --------------------------------------------------
-# CRYPTO PANEL
+# CRYPTO PANEL (SELF-CONTAINED INPUT HANDLING)
 # --------------------------------------------------
 
 class PanthamCryptoTerminal(Vertical):
@@ -100,10 +95,7 @@ class PanthamCryptoTerminal(Vertical):
         try:
             r = requests.get(
                 "https://api.coingecko.com/api/v3/simple/price",
-                params={
-                    "ids": "bitcoin,ethereum",
-                    "vs_currencies": self.currency,
-                },
+                params={"ids": "bitcoin,ethereum", "vs_currencies": self.currency},
                 timeout=5,
             )
             data = r.json()
@@ -117,12 +109,22 @@ class PanthamCryptoTerminal(Vertical):
                 f"[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]"
             )
         except Exception:
-            self.btc.update("[red]BTC API ERROR[/]")
-            self.eth.update("[red]ETH API ERROR[/]")
+            self.btc.update("[red]BTC ERROR[/]")
+            self.eth.update("[red]ETH ERROR[/]")
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key.lower() == "c":
+            self.currency = "aud" if self.currency == "usd" else "usd"
+            self.update_prices()
+            event.stop()
+
+        elif event.key == "escape":
+            self.remove()
+            event.stop()
 
 
 # --------------------------------------------------
-# MAIN TERMINAL
+# MAIN APP
 # --------------------------------------------------
 
 class PanthaTerminal(App):
@@ -145,78 +147,48 @@ class PanthaTerminal(App):
                 with Vertical(id="right"):
                     with ScrollableContainer():
                         yield RichLog(id="log", markup=True)
-                    yield Input(id="input", placeholder="Type a command...")
+                    self.input = Input(placeholder="Type a command...")
+                    yield self.input
 
         yield Footer()
 
     def on_mount(self) -> None:
-        log = self.query_one("#log", RichLog)
+        log = self.query_one(RichLog)
         log.write("[bold #ff4dff]Pantha Terminal Online[/]")
-        log.write("[#b066ff]Type [bold]help[/] for available commands[/]")
-        self.query_one("#input", Input).focus()
-
-    # Prevent hard crashes (EXE safe)
-    def on_exception(self, exception: Exception) -> None:
-        log = self.query_one("#log", RichLog)
-        log.write(f"[bold red]ERROR PREVENTED:[/] {exception}")
+        log.write("[#b066ff]Type [bold]help[/] to begin[/]")
+        self.input.focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        try:
-            cmd = event.value.strip().lower()
-            event.input.value = ""
+        cmd = event.value.strip().lower()
+        event.input.value = ""
 
-            log = self.query_one("#log", RichLog)
-            log.write(f"> {cmd}")
+        log = self.query_one(RichLog)
+        log.write(f"> {cmd}")
 
-            if not cmd:
-                return
+        if not cmd:
+            return
 
-            if cmd == "help":
-                log.write(HELP_TEXT)
+        if cmd == "help":
+            log.write(HELP_TEXT)
 
-            elif cmd == "pantham":
-                self.pantham_mode = True
-                log.write(f"[bold #ff4dff]{PANTHAM_ASCII}[/]")
+        elif cmd == "pantham":
+            self.pantham_mode = True
+            log.write(f"[bold #ff4dff]{PANTHAM_ASCII}[/]")
 
-            elif cmd == "stock":
-                if not self.pantham_mode:
-                    log.write("[red]Pantham Mode required[/]")
-                else:
-                    old = self.query_one("#crypto", default=None)
-                    if old:
-                        old.remove()
-                    self.query_one("#right").mount(
-                        PanthamCryptoTerminal(id="crypto")
-                    )
-
-            elif cmd in ("exit", "quit"):
-                self.exit()
-
+        elif cmd == "stock":
+            if not self.pantham_mode:
+                log.write("[red]Pantham Mode required[/]")
             else:
-                log.write("[#888888]Unknown command (type help)[/]")
+                existing = self.query_one(PanthamCryptoTerminal, default=None)
+                if existing:
+                    existing.remove()
+                self.query_one("#right").mount(PanthamCryptoTerminal())
 
-        except Exception as e:
-            self.on_exception(e)
+        elif cmd in ("exit", "quit"):
+            self.exit()
 
-        # 🔑 Always restore input focus
-        self.call_later(self.query_one("#input", Input).focus)
-
-    # Global key handling (safe)
-    def on_key(self, event: events.Key) -> None:
-        panel = self.query_one("#crypto", default=None)
-
-        if event.key == "enter":
-            return
-
-        if not panel:
-            return
-
-        if event.key.lower() == "c":
-            panel.currency = "aud" if panel.currency == "usd" else "usd"
-            panel.update_prices()
-
-        elif event.key == "escape":
-            panel.remove()
+        else:
+            log.write("[#888888]Unknown command (type help)[/]")
 
 
 # --------------------------------------------------
