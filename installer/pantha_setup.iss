@@ -29,15 +29,20 @@ WizardStyle=modern
 
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayName={#MyAppName} {#MyAppVersion}
 
 WizardResizable=no
 DisableProgramGroupPage=yes
 
-PrivilegesRequired=admin
+; 🔥 DO NOT REQUIRE ADMIN
+PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64
 
 UsePreviousAppDir=yes
 UsePreviousGroup=yes
+
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -53,7 +58,6 @@ Source: "..\dist\PanthaTerminal\*"; \
   Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-; ★ Use EXE icon directly
 Name: "{group}\{#MyAppName}"; \
   Filename: "{app}\{#MyAppExeName}"; \
   IconFilename: "{app}\{#MyAppExeName}"
@@ -66,7 +70,7 @@ Name: "{commondesktop}\{#MyAppName}"; \
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   ValueType: string; ValueName: "{#MyAppName}"; \
-  ValueData: """{app}\{#MyAppExeName}"""; \
+  ValueData: "{app}\{#MyAppExeName}"; \
   Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
