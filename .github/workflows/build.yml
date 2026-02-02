@@ -55,7 +55,7 @@ jobs:
       # --------------------------------------------------
       # PYINSTALLER BUILD (TEXTUAL SAFE)
       # --------------------------------------------------
-      - name: Build PanthaTerminal (Stable Textual Build)
+      - name: Build PanthaTerminal
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean `
@@ -63,15 +63,9 @@ jobs:
             --onedir `
             --console `
             --icon "assets/icon.ico" `
-            --collect-all rich `
             --collect-all textual `
+            --collect-all rich `
             --collect-submodules rich._unicode_data `
-            --hidden-import textual.widgets._header `
-            --hidden-import textual.widgets._footer `
-            --hidden-import textual.widgets._input `
-            --hidden-import textual.widgets._rich_log `
-            --hidden-import crypto_terminal `
-            --hidden-import asyncio `
             app/main.py
 
       # --------------------------------------------------
