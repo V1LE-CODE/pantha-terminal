@@ -15,9 +15,15 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # --------------------------------------------------
+      # CHECKOUT
+      # --------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --------------------------------------------------
+      # VERSION FROM TAG
+      # --------------------------------------------------
       - name: Set version (from tag or fallback)
         shell: pwsh
         run: |
@@ -28,11 +34,17 @@ jobs:
           Write-Host "Using version: $ver"
           "PANTHA_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      # --------------------------------------------------
+      # PYTHON
+      # --------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # --------------------------------------------------
+      # DEPENDENCIES
+      # --------------------------------------------------
       - name: Install dependencies + PyInstaller
         shell: pwsh
         run: |
@@ -40,7 +52,10 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build PanthaTerminal (STABLE TEXTUAL BUILD)
+      # --------------------------------------------------
+      # PYINSTALLER BUILD (TEXTUAL SAFE)
+      # --------------------------------------------------
+      - name: Build PanthaTerminal (Stable Textual Build)
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean `
@@ -50,13 +65,18 @@ jobs:
             --icon "assets/icon.ico" `
             --collect-all rich `
             --collect-all textual `
+            --collect-submodules rich._unicode_data `
             --hidden-import textual.widgets._header `
             --hidden-import textual.widgets._footer `
             --hidden-import textual.widgets._input `
             --hidden-import textual.widgets._rich_log `
+            --hidden-import crypto_terminal `
             --hidden-import asyncio `
             app/main.py
 
+      # --------------------------------------------------
+      # INNO SETUP
+      # --------------------------------------------------
       - name: Install Inno Setup
         shell: pwsh
         run: |
@@ -72,6 +92,9 @@ jobs:
         run: |
           iscc installer/pantha_setup.iss
 
+      # --------------------------------------------------
+      # UPLOAD ARTIFACT
+      # --------------------------------------------------
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
         with:
