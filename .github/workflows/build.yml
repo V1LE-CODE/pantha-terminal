@@ -40,7 +40,7 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build PanthaTerminal (ONEDIR, console, icon embedded)
+      - name: Build PanthaTerminal (STABLE TEXTUAL BUILD)
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean `
@@ -50,7 +50,11 @@ jobs:
             --icon "assets/icon.ico" `
             --collect-all rich `
             --collect-all textual `
-            --collect-submodules rich._unicode_data `
+            --hidden-import textual.widgets._header `
+            --hidden-import textual.widgets._footer `
+            --hidden-import textual.widgets._input `
+            --hidden-import textual.widgets._rich_log `
+            --hidden-import asyncio `
             app/main.py
 
       - name: Install Inno Setup
