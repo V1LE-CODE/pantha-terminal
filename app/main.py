@@ -3,7 +3,8 @@ from __future__ import annotations
 import os
 import sys
 import subprocess
-import requests
+import json
+import urllib.request
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -50,7 +51,7 @@ v1  ( | | )___
 
 
 # --------------------------------------------------
-# CRYPTO TERMINAL (SPAWNED)
+# CRYPTO TERMINAL
 # --------------------------------------------------
 
 class CryptoPriceBox(Static):
@@ -86,21 +87,29 @@ class PanthaCryptoTerminal(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        self.refresh_prices()
         self.set_interval(5, self.refresh_prices)
 
     def refresh_prices(self) -> None:
         try:
-            r = requests.get(
-                "https://api.coingecko.com/api/v3/simple/price",
-                params={
-                    "ids": "bitcoin,ethereum",
-                    "vs_currencies": self.currency,
-                },
-                timeout=5,
-            ).json()
+            url = (
+                "https://api.coingecko.com/api/v3/simple/price"
+                f"?ids=bitcoin,ethereum&vs_currencies={self.currency}"
+            )
 
-            self.btc.update_price("BITCOIN", r["bitcoin"][self.currency], self.currency)
-            self.eth.update_price("ETHEREUM", r["ethereum"][self.currency], self.currency)
+            with urllib.request.urlopen(url, timeout=5) as r:
+                data = json.loads(r.read().decode())
+
+            self.btc.update_price(
+                "BITCOIN",
+                data["bitcoin"][self.currency],
+                self.currency,
+            )
+            self.eth.update_price(
+                "ETHEREUM",
+                data["ethereum"][self.currency],
+                self.currency,
+            )
 
         except Exception:
             self.btc.update("[red]API ERROR[/]")
