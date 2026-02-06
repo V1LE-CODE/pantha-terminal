@@ -60,6 +60,10 @@ class PanthaTerminal(App):
             or (os.uname().nodename if hasattr(os, "uname") else "local")
         )
 
+        # Notes system
+        self.notes_dir = Path("notes")
+        self.notes_dir.mkdir(exist_ok=True)
+
     # --------------------------------------------------
     # STYLES
     # --------------------------------------------------
@@ -192,6 +196,9 @@ class PanthaTerminal(App):
 
         low = cmd.lower()
 
+        # -------------------------
+        # General Commands
+        # -------------------------
         if low == "clear":
             log.clear()
             self.update_status("Cleared")
@@ -209,11 +216,41 @@ class PanthaTerminal(App):
             self.update_status("PANTHAM MODE OFF")
             return
 
+        if not self.pantha_mode:
+            if low in ("exit", "quit"):
+                self.exit()
+                return
+            self.run_shell(cmd)
+            return
+
+        # -------------------------
+        # Pantham Mode Commands
+        # -------------------------
+        if low.startswith("add note"):
+            self.add_note()
+            return
+
+        if low.startswith("open note"):
+            parts = cmd.split(maxsplit=2)
+            if len(parts) < 3:
+                log.write("[#ff4dff]Usage: open note <name>[/]")
+            else:
+                self.open_note(parts[2])
+            return
+
+        if low.startswith("delete note"):
+            parts = cmd.split(maxsplit=2)
+            if len(parts) < 3:
+                log.write("[#ff4dff]Usage: delete note <name>[/]")
+            else:
+                self.delete_note(parts[2])
+            return
+
         if low in ("exit", "quit"):
             self.exit()
             return
 
-        self.run_shell(cmd)
+        log.write(f"[red]Unknown Pantham command:[/] {cmd}")
 
     # --------------------------------------------------
     # PANTHAM MODE ASCII
@@ -221,7 +258,7 @@ class PanthaTerminal(App):
 
     def show_pantha_ascii(self) -> None:
         ascii_art = r"""
-⠀⠀⠀⠀⠀⠀⠀/\_/\
+⠀⠀⠀⠀⠀⠀⠀/\_/\ 
    ____/ o o \
  /~____  =ø= /
 (______)__m_m)
@@ -235,9 +272,58 @@ class PanthaTerminal(App):
       ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
       ░▒▓█▓▒░  SYSTEM • TERMINAL • CONTROL      ░▒▓█▓▒░
 """
-
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]" + ascii_art + "[/]")
+
+    # --------------------------------------------------
+    # NOTE SYSTEM
+    # --------------------------------------------------
+
+    def add_note(self) -> None:
+        log = self.query_one("#log", RichLog)
+
+        # Ask for note name first
+        note_name = input("Enter note name: ").strip()
+        if not note_name:
+            log.write("[red]Note creation cancelled: No name provided[/]")
+            return
+
+        final_path = self.notes_dir / f"{note_name}.txt"
+        if final_path.exists():
+            log.write(f"[red]Note already exists:[/] {note_name}")
+            return
+
+        editor = os.environ.get("EDITOR", "nano" if os.name != "nt" else "notepad")
+        subprocess.call([editor, str(final_path)])
+
+        if final_path.exists() and final_path.stat().st_size > 0:
+            log.write(f"[green]Note saved:[/] {final_path.name}")
+        else:
+            # Remove empty note
+            if final_path.exists():
+                final_path.unlink()
+            log.write("[yellow]Empty note discarded[/]")
+
+    def open_note(self, name: str) -> None:
+        log = self.query_one("#log", RichLog)
+        note_path = self.notes_dir / f"{name}.txt"
+        if not note_path.exists():
+            log.write(f"[red]Note not found:[/] {name}")
+            return
+
+        editor = os.environ.get("EDITOR", "nano" if os.name != "nt" else "notepad")
+        subprocess.call([editor, str(note_path)])
+        log.write(f"[green]Opened note:[/] {note_path.name}")
+
+    def delete_note(self, name: str) -> None:
+        log = self.query_one("#log", RichLog)
+        note_path = self.notes_dir / f"{name}.txt"
+        if not note_path.exists():
+            log.write(f"[red]Note not found:[/] {name}")
+            return
+
+        note_path.unlink()
+        log.write(f"[green]Deleted note:[/] {name}")
 
 
 if __name__ == "__main__":
