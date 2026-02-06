@@ -53,7 +53,7 @@ v1  ( | | )___      (  /  )                   (`\
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal v1.1.2"
+    SUB_TITLE = "Official Pantha Terminal v1.1.3"
 
     status_text: reactive[str] = reactive("Ready")
     NOTES_FILE = user_data_dir() / "notes.json"
@@ -212,7 +212,7 @@ class PanthaTerminal(App):
         parts = cmd.split(maxsplit=2)
 
         if len(parts) < 2:
-            log.write("[yellow]Usage: note list|create|view|write|delete[/]")
+            log.write("[yellow]Usage: note list|create|view|write|delete|export|import[/]")
             return
 
         action = parts[1].lower()
@@ -271,6 +271,40 @@ class PanthaTerminal(App):
             log.write(f"[green]Deleted note:[/] {escape(title)}")
             return
 
+        # --------------------------
+        # EXPORT NOTE
+        # --------------------------
+        if action == "export":
+            title = parts[2] if len(parts) > 2 else ""
+            if not title:
+                log.write("[yellow]Usage: note export <title>[/]")
+                return
+            if title not in self.notes:
+                log.write("[red]Note not found.[/]")
+                return
+            export_file = user_data_dir() / f"{title}.txt"
+            export_file.write_text(self.notes[title], encoding="utf-8")
+            log.write(f"[green]Exported note:[/] {escape(title)} → {export_file}")
+            return
+
+        # --------------------------
+        # IMPORT NOTE
+        # --------------------------
+        if action == "import":
+            filepath = parts[2] if len(parts) > 2 else ""
+            if not filepath:
+                log.write("[yellow]Usage: note import <file_path>[/]")
+                return
+            path = Path(filepath)
+            if not path.exists() or not path.is_file():
+                log.write("[red]File not found.[/]")
+                return
+            title = path.stem
+            self.notes[title] = path.read_text(encoding="utf-8")
+            self.save_notes()
+            log.write(f"[green]Imported note:[/] {escape(title)} from {filepath}")
+            return
+
         log.write("[yellow]Unknown note command.[/]")
 
     # --------------------------------------------------
@@ -303,6 +337,8 @@ class PanthaTerminal(App):
 [#ffffff]note view <title>[/]
 [#ffffff]note write <title> <text>[/]
 [#ffffff]note delete <title>[/]
+[#ffffff]note export <title>[/]
+[#ffffff]note import <file_path>[/]
 
 [#888888]CTRL+L → clear[/]
 [#888888]CTRL+C → quit[/]
