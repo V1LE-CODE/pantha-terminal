@@ -1,24 +1,32 @@
 from __future__ import annotations
 
-import requests
+import os
+import sys
+import subprocess
+from pathlib import Path
+
 from textual.app import App, ComposeResult
-from textual.containers import Vertical, Horizontal, ScrollableContainer
+from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
-from textual import events
 
 
-# --------------------------------------------------
-# BANNER
-# --------------------------------------------------
+def resource_path(relative: str) -> str:
+    try:
+        base_path = sys._MEIPASS  # type: ignore[attr-defined]
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative)
+
 
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
             r"""
+
      ^---^
     ( . . )
-    (___'_ )
+    (___'_)
 v1  ( | | )___
    (__m_m__)__}
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
@@ -27,177 +35,210 @@ v1  ( | | )___
 ██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
+
+        ░▒▓█▓▒░  P A N T H A   T E R M I N A L  ░▒▓█▓▒░
 """
         )
 
-
-# --------------------------------------------------
-# ASCII
-# --------------------------------------------------
-
-PANTHAM_ASCII = r"""
-⠀⠀⠀⠀⠀⠀⠀/\_/\ 
-   ____/ o o \
- /~____  =ø= /
-(______)__m_m)
-
-░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
-"""
-
-HELP_TEXT = """
-[bold #ff4dff]COMMANDS[/]
-
-help
-  Show this menu
-
-pantham
-  Enable Pantham Mode
-
-stock
-  Open live crypto panel (Pantham Mode required)
-
-exit / quit
-  Close terminal
-
-[bold #ff4dff]CRYPTO PANEL[/]
-C   Toggle USD / AUD
-ESC Close panel
-"""
-
-
-# --------------------------------------------------
-# CRYPTO PANEL
-# --------------------------------------------------
-
-class PanthamCryptoTerminal(Vertical):
-    currency: reactive[str] = reactive("usd")
-
-    def compose(self) -> ComposeResult:
-        self.btc = Static()
-        self.eth = Static()
-
-        yield Static(
-            "[bold #ff4dff]PANTHAM LIVE CRYPTO TERMINAL[/]\n"
-            "[#888888]C → USD/AUD | ESC → close[/]"
-        )
-        yield self.btc
-        yield self.eth
-
-    def on_mount(self) -> None:
-        self.update_prices()
-        self.timer = self.set_interval(15, self.update_prices)
-
-    def on_unmount(self) -> None:
-        if hasattr(self, "timer"):
-            self.timer.stop()
-
-    def update_prices(self) -> None:
-        try:
-            r = requests.get(
-                "https://api.coingecko.com/api/v3/simple/price",
-                params={"ids": "bitcoin,ethereum", "vs_currencies": self.currency},
-                timeout=5,
-            )
-            data = r.json()
-
-            self.btc.update(
-                f"[bold #b066ff]BTC[/]\n"
-                f"[#ff4dff]{data['bitcoin'][self.currency]:,.2f} {self.currency.upper()}[/]"
-            )
-            self.eth.update(
-                f"[bold #b066ff]ETH[/]\n"
-                f"[#ff4dff]{data['ethereum'][self.currency]:,.2f} {self.currency.upper()}[/]"
-            )
-        except Exception:
-            self.btc.update("[red]BTC ERROR[/]")
-            self.eth.update("[red]ETH ERROR[/]")
-
-    def on_key(self, event: events.Key) -> None:
-        if event.key.lower() == "c":
-            self.currency = "aud" if self.currency == "usd" else "usd"
-            self.update_prices()
-            event.stop()
-
-        elif event.key == "escape":
-            self.remove()
-            event.stop()
-
-
-# --------------------------------------------------
-# MAIN APP
-# --------------------------------------------------
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal v1.0.0"
+    SUB_TITLE = "Official Pantha Terminal V1.0.0"
 
-    pantham_mode: reactive[bool] = reactive(False)
+    CSS_PATH = None
+    status_text: reactive[str] = reactive("Ready")
 
-    def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+    def __init__(self) -> None:
+        super().__init__()
+        self.command_history: list[str] = []
+        self.history_index = -1
+        self.pantha_mode = False
 
-        with Vertical():
-            yield PanthaBanner()
-
-            with Horizontal():
-                with Vertical(id="left"):
-                    yield Static("[bold]SYSTEM[/]")
-                    yield Static("• Pantham Mode\n• Live Crypto")
-
-                # ✅ STORE REFERENCE
-                self.right_panel = Vertical()
-                yield self.right_panel
-
-        yield Footer()
-
-    def on_mount(self) -> None:
-        self.log = RichLog(markup=True)
-        self.input = Input(placeholder="Type a command...")
-
-        self.right_panel.mount(
-            ScrollableContainer(self.log),
-            self.input,
+        self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
+        self.hostname = (
+            os.environ.get("COMPUTERNAME")
+            or (os.uname().nodename if hasattr(os, "uname") else "local")
         )
 
-        self.log.write("[bold #ff4dff]Pantha Terminal Online[/]")
-        self.log.write("[#b066ff]Type [bold]help[/] to begin[/]")
-        self.input.focus()
+    # --------------------------------------------------
+    # STYLES
+    # --------------------------------------------------
+
+    def load_tcss(self) -> None:
+        dev = Path(__file__).parent / "styles.tcss"
+        if dev.exists():
+            self.stylesheet.read(dev)
+            return
+
+        packed = Path(resource_path("app/styles.tcss"))
+        if packed.exists():
+            self.stylesheet.read(packed)
+
+    # --------------------------------------------------
+    # UI
+    # --------------------------------------------------
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="frame"):
+            yield Header(show_clock=True)
+
+            with Vertical(id="root"):
+                yield PanthaBanner(id="banner")
+
+                with Horizontal(id="main_row"):
+                    with Vertical(id="left_panel"):
+                        yield Static("SYSTEM", id="panel_title")
+                        yield Static(
+                            f"• User: {self.username}\n"
+                            f"• Host: {self.hostname}\n"
+                            "• Pantha Terminal\n"
+                            "• Purple Aesthetic\n"
+                            "• Pantham Mode",
+                            id="system_info",
+                        )
+
+                        yield Static("HOTKEYS", id="panel_title2")
+                        yield Static(
+                            "ENTER     → run command\n"
+                            "UP/DOWN   → history\n"
+                            "CTRL+C    → quit\n"
+                            "CTRL+L    → clear log\n"
+                            "pantham   → toggle mode",
+                            id="hotkeys",
+                        )
+
+                    with Vertical(id="right_panel"):
+                        yield Static("OUTPUT", id="output_title")
+
+                        with ScrollableContainer(id="log_wrap"):
+                            yield RichLog(id="log", highlight=True, markup=True, wrap=True)
+
+                        yield Static("", id="status_line")
+                        yield Input(
+                            placeholder="Type a command...",
+                            id="command_input",
+                        )
+
+            yield Footer()
+
+    # --------------------------------------------------
+    # LIFECYCLE
+    # --------------------------------------------------
+
+    def on_mount(self) -> None:
+        self.load_tcss()
+
+        log = self.query_one("#log", RichLog)
+        log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
+        log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
+        self.update_status("Ready")
+
+        self.query_one("#command_input", Input).focus()
+
+    # --------------------------------------------------
+    # INPUT HANDLING
+    # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        cmd = event.value.strip().lower()
+        cmd = event.value.strip()
         event.input.value = ""
+        self.run_command(cmd)
 
-        self.log.write(f"> {cmd}")
+    def on_key(self, event) -> None:
+        inp = self.query_one("#command_input", Input)
 
+        if event.key == "ctrl+l":
+            self.query_one("#log", RichLog).clear()
+            self.update_status("Cleared")
+            event.stop()
+            return
+
+        if event.key == "up" and self.command_history:
+            self.history_index = max(0, self.history_index - 1)
+            inp.value = self.command_history[self.history_index]
+            inp.cursor_position = len(inp.value)
+            event.stop()
+            return
+
+        if event.key == "down" and self.command_history:
+            self.history_index = min(len(self.command_history), self.history_index + 1)
+            inp.value = "" if self.history_index >= len(self.command_history) else self.command_history[self.history_index]
+            inp.cursor_position = len(inp.value)
+            event.stop()
+            return
+
+    # --------------------------------------------------
+    # COMMANDS
+    # --------------------------------------------------
+
+    def update_status(self, text: str) -> None:
+        self.status_text = text
+        self.query_one("#status_line", Static).update(
+            f"[#ff4dff]STATUS:[/] [#ffffff]{text}[/]"
+        )
+
+    def prompt(self) -> str:
+        return f"[#b066ff]{self.username}[/]@[#ff4dff]{self.hostname}[/]:[#ffffff]~$[/]"
+
+    def run_command(self, cmd: str) -> None:
         if not cmd:
             return
 
-        if cmd == "help":
-            self.log.write(HELP_TEXT)
+        self.command_history.append(cmd)
+        self.history_index = len(self.command_history)
 
-        elif cmd == "pantham":
-            self.pantham_mode = True
-            self.log.write(f"[bold #ff4dff]{PANTHAM_ASCII}[/]")
+        log = self.query_one("#log", RichLog)
+        log.write(f"{self.prompt()} [#ffffff]{cmd}[/]")
 
-        elif cmd == "stock":
-            if not self.pantham_mode:
-                self.log.write("[red]Pantham Mode required[/]")
-            else:
-                existing = self.right_panel.query(PanthamCryptoTerminal)
-                for panel in existing:
-                    panel.remove()
-                self.right_panel.mount(PanthamCryptoTerminal())
+        low = cmd.lower()
 
-        elif cmd in ("exit", "quit"):
+        if low == "clear":
+            log.clear()
+            self.update_status("Cleared")
+            return
+
+        if low == "pantham":
+            self.pantha_mode = True
+            self.show_pantha_ascii()
+            self.update_status("PANTHAM MODE ONLINE")
+            return
+
+        if low == "pantham off":
+            self.pantha_mode = False
+            log.write("[#888888]Pantham Mode disengaged.[/]")
+            self.update_status("PANTHAM MODE OFF")
+            return
+
+        if low in ("exit", "quit"):
             self.exit()
+            return
 
-        else:
-            self.log.write("[#888888]Unknown command (type help)[/]")
+        self.run_shell(cmd)
 
+    # --------------------------------------------------
+    # PANTHAM MODE ASCII
+    # --------------------------------------------------
 
-# --------------------------------------------------
-# ENTRY
-# --------------------------------------------------
+    def show_pantha_ascii(self) -> None:
+        ascii_art = r"""
+⠀⠀⠀⠀⠀⠀⠀/\_/\
+   ____/ o o \
+ /~____  =ø= /
+(______)__m_m)
+██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗
+██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║
+██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
+██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
+╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
+
+      ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
+      ░▒▓█▓▒░  SYSTEM • TERMINAL • CONTROL      ░▒▓█▓▒░
+"""
+
+        log = self.query_one("#log", RichLog)
+        log.write("[bold #ff4dff]" + ascii_art + "[/]")
+
 
 if __name__ == "__main__":
     PanthaTerminal().run()
