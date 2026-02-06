@@ -31,6 +31,7 @@ class PanthaTerminal(App):
     pantha_mode: reactive[bool] = reactive(False)
     adding_note: reactive[bool] = reactive(False)
     current_note_name: str = ""
+    note_buffer: list[str] = []
 
     def __init__(self):
         super().__init__()
@@ -38,8 +39,6 @@ class PanthaTerminal(App):
         self.history_index = -1
         self.notes_dir = Path("notes")
         self.notes_dir.mkdir(exist_ok=True)
-        self.note_buffer = []
-
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
         self.hostname = os.environ.get("COMPUTERNAME") or "local"
 
@@ -93,18 +92,16 @@ class PanthaTerminal(App):
     def on_input_submitted(self, event):
         cmd = event.value.strip()
         event.input.value = ""
-
         log = self.query_one("#log", RichLog)
 
-        # Handle adding note line by line
         if self.adding_note:
             if cmd.lower() == "end":
                 note_path = self.notes_dir / f"{self.current_note_name}.txt"
                 note_path.write_text("\n".join(self.note_buffer))
                 log.write(f"[green]Saved note:[/] {self.current_note_name}")
                 self.adding_note = False
-                self.note_buffer = []
                 self.current_note_name = ""
+                self.note_buffer = []
             else:
                 self.note_buffer.append(cmd)
             return
@@ -115,7 +112,6 @@ class PanthaTerminal(App):
 
         low = cmd.lower()
 
-        # Core commands
         if low == "clear":
             log.clear()
             self.update_status("Cleared")
@@ -130,7 +126,6 @@ class PanthaTerminal(App):
         elif low in ("exit", "quit"):
             self.exit()
         elif self.pantha_mode:
-            # Pantham commands
             if low.startswith("add note"):
                 parts = cmd.split(maxsplit=2)
                 if len(parts) < 3:
@@ -145,10 +140,9 @@ class PanthaTerminal(App):
                 if len(parts) < 3:
                     log.write("[#ff4dff]Usage: open note <name>[/]")
                 else:
-                    note_path = self.notes_dir / f"{parts[2]}.txt"
-                    if note_path.exists():
-                        contents = note_path.read_text()
-                        log.write(f"[green]Contents of {parts[2]}:[/]\n{contents}")
+                    path = self.notes_dir / f"{parts[2]}.txt"
+                    if path.exists():
+                        log.write(f"[green]Contents of {parts[2]}:[/]\n{path.read_text()}")
                     else:
                         log.write(f"[red]Note not found:[/] {parts[2]}")
             elif low.startswith("delete note"):
@@ -156,9 +150,9 @@ class PanthaTerminal(App):
                 if len(parts) < 3:
                     log.write("[#ff4dff]Usage: delete note <name>[/]")
                 else:
-                    note_path = self.notes_dir / f"{parts[2]}.txt"
-                    if note_path.exists():
-                        note_path.unlink()
+                    path = self.notes_dir / f"{parts[2]}.txt"
+                    if path.exists():
+                        path.unlink()
                         log.write(f"[green]Deleted note:[/] {parts[2]}")
                     else:
                         log.write(f"[red]Note not found:[/] {parts[2]}")
@@ -196,7 +190,7 @@ class PanthaTerminal(App):
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╚══██║██╔══██║██║╚██╔╝██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
 
