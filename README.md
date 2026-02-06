@@ -1,4 +1,4 @@
-# 🐈‍⬛ Pantha Terminal
+# Pantha Terminal Developed By V1LE-CODE
 
 ![Pantha Terminal Banner](assets/banner.bmp)  
 
