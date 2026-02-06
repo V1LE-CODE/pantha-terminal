@@ -35,10 +35,50 @@
 - Python 3.11+
 - Pip
 
-### Clone & Install
+### PANTHAM Note Commands!!
 
 ```bash
-git clone https://github.com/yourusername/pantha-terminal.git
-cd pantha-terminal/app
-pip install -r ../requirements.txt
-python main.py
+note create ideas
+note write ideas "Build Pantha AI core"
+note view ideas
+note list
+note delete ideas
+```
+
+*** FEATURES
+
+```bash
+help         # Show Pantham commands
+clear        # Clear the log
+exit / quit  # Exit Pantha Terminal
+pantham off  # Deactivate Pantham Mode
+```
+
+*** PANTHAM Commands
+
+```bash
+PANTHAM COMMANDS
+────────────────
+note list
+note create <title>
+note view <title>
+note write <title> <text>
+note delete <title>
+help
+CTRL+L → clear
+CTRL+C → quit
+pantham off
+```
+
+*** README
+```bash
+This README is designed to:
+
+- Be **professional and colorful**  
+- Highlight **features clearly**  
+- Include **badges for Python version, license, platform**  
+- Show **quick start and Pantham Mode magic**  
+- Make GitHub visitors **understand and feel excited instantly**  
+```
+
+Would You Like To Help Make Pantha Better? Join V!LE-CODE Team :) 
