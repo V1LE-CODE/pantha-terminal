@@ -4,24 +4,17 @@ import os
 import json
 import traceback
 from pathlib import Path
-from getpass import getpass
-from typing import Optional
+from shlex import split as shlex_split
 
 from textual.app import App, ComposeResult
-from textual.containers import ScrollableContainer
+from textual.containers import Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
 
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-import base64
-import secrets
 
 # --------------------------------------------------
-# USER DATA DIRECTORY
+# USER DATA (SAFE LOCATION)
 # --------------------------------------------------
 
 def user_data_dir() -> Path:
@@ -29,8 +22,9 @@ def user_data_dir() -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
 
-NOTES_FILE = user_data_dir() / "notes.enc"
-CONFIG_FILE = user_data_dir() / "config.json"
+
+HISTORY_FILE = user_data_dir() / "history.json"
+
 
 # --------------------------------------------------
 # BANNER
@@ -41,7 +35,7 @@ class PanthaBanner(Static):
         self.update(
             r"""      
      ^---^
-    ( . . )        \    /\ 
+    ( . . )        \    /\
     (___'_)         )  ( ')           
 v1  ( | | )___      (  /  )                   (`\
    (__m_m__)__}      \(__)|                    ) )
@@ -56,37 +50,6 @@ v1  ( | | )___      (  /  )                   (`\
 """
         )
 
-# --------------------------------------------------
-# ENCRYPTION HELPERS
-# --------------------------------------------------
-
-def derive_key(password: str, salt: bytes) -> bytes:
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=100_000,
-        backend=default_backend()
-    )
-    return kdf.derive(password.encode())
-
-def encrypt_notes(notes: dict[str, str], password: str) -> bytes:
-    salt = secrets.token_bytes(16)
-    key = derive_key(password, salt)
-    aesgcm = AESGCM(key)
-    data = json.dumps(notes, ensure_ascii=False).encode("utf-8")
-    nonce = secrets.token_bytes(12)
-    encrypted = aesgcm.encrypt(nonce, data, None)
-    return salt + nonce + encrypted
-
-def decrypt_notes(blob: bytes, password: str) -> dict[str, str]:
-    salt = blob[:16]
-    nonce = blob[16:28]
-    ciphertext = blob[28:]
-    key = derive_key(password, salt)
-    aesgcm = AESGCM(key)
-    decrypted = aesgcm.decrypt(nonce, ciphertext, None)
-    return json.loads(decrypted.decode("utf-8"))
 
 # --------------------------------------------------
 # APP
@@ -97,45 +60,20 @@ class PanthaTerminal(App):
     SUB_TITLE = "Official Pantha Terminal v1.2.0"
 
     status_text: reactive[str] = reactive("Ready")
-    pantha_mode: bool = False
-    master_password: Optional[str] = None
-    notes: dict[str, str] = {}
+    NOTES_FILE = user_data_dir() / "notes.json"
 
     def __init__(self) -> None:
         super().__init__()
-        self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
-        self.hostname = os.environ.get("COMPUTERNAME") or "local"
+        self.pantha_mode = False
+        self.notes: dict[str, str] = {}
         self.command_history: list[str] = []
         self.history_index = -1
-        self.load_or_create_master_password()
+
+        self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
+        self.hostname = os.environ.get("COMPUTERNAME") or "local"
+
         self.load_notes()
-
-    # --------------------------------------------------
-    # MASTER PASSWORD
-    # --------------------------------------------------
-
-    def load_or_create_master_password(self) -> None:
-        if CONFIG_FILE.exists():
-            config = json.loads(CONFIG_FILE.read_text("utf-8"))
-            self.master_password = config.get("master_password")
-        else:
-            print("First time setup: create a master password for Pantham mode")
-            while True:
-                pw = getpass("Enter master password: ")
-                pw2 = getpass("Confirm password: ")
-                if pw == pw2 and pw.strip():
-                    self.master_password = pw
-                    CONFIG_FILE.write_text(json.dumps({"master_password": self.master_password}))
-                    print("Master password saved securely.")
-                    break
-                print("Passwords do not match or are empty. Try again.")
-
-    def require_pantha(self) -> bool:
-        if not self.pantha_mode:
-            log = self.query_one("#log", RichLog)
-            log.write("[red]Notes locked. Enter [bold]pantham[/] first.[/]")
-            return False
-        return True
+        self.load_history()
 
     # --------------------------------------------------
     # UI
@@ -144,8 +82,10 @@ class PanthaTerminal(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield PanthaBanner()
+
         with ScrollableContainer():
             yield RichLog(id="log", markup=True, wrap=True)
+
         yield Static("", id="status_line")
         yield Input(id="command_input", placeholder="Type a command...")
         yield Footer()
@@ -156,8 +96,9 @@ class PanthaTerminal(App):
         log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
         self.focus_input()
 
-    def focus_input(self) -> None:
-        self.query_one("#command_input", Input).focus()
+    # --------------------------------------------------
+    # INPUT / HOTKEYS
+    # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
@@ -167,55 +108,94 @@ class PanthaTerminal(App):
 
     def on_key(self, event) -> None:
         log = self.query_one("#log", RichLog)
+
         if event.key == "ctrl+l":
             log.clear()
             self.update_status("Cleared")
             event.stop()
+            return
+
         if event.key == "ctrl+c":
             self.exit()
-    
+
+        # Up/Down history navigation
+        inp = self.query_one("#command_input", Input)
+        if event.key == "up" and self.command_history:
+            self.history_index = max(0, self.history_index - 1)
+            inp.value = self.command_history[self.history_index]
+            inp.cursor_position = len(inp.value)
+            event.stop()
+        if event.key == "down" and self.command_history:
+            self.history_index = min(len(self.command_history), self.history_index + 1)
+            inp.value = "" if self.history_index >= len(self.command_history) else self.command_history[self.history_index]
+            inp.cursor_position = len(inp.value)
+            event.stop()
+
+    def focus_input(self) -> None:
+        self.query_one("#command_input", Input).focus()
+
     # --------------------------------------------------
     # NOTES STORAGE
     # --------------------------------------------------
 
     def load_notes(self) -> None:
         try:
-            if NOTES_FILE.exists() and self.master_password:
-                blob = NOTES_FILE.read_bytes()
-                self.notes = decrypt_notes(blob, self.master_password)
+            if self.NOTES_FILE.exists():
+                self.notes = json.loads(self.NOTES_FILE.read_text("utf-8"))
             else:
                 self.notes = {}
+                self.save_notes()
         except Exception:
             self.notes = {}
 
     def save_notes(self) -> None:
-        if self.master_password:
-            blob = encrypt_notes(self.notes, self.master_password)
-            NOTES_FILE.write_bytes(blob)
+        self.NOTES_FILE.write_text(
+            json.dumps(self.notes, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
     # --------------------------------------------------
-    # COMMAND EXECUTION
+    # HISTORY
+    # --------------------------------------------------
+
+    def load_history(self) -> None:
+        try:
+            if HISTORY_FILE.exists():
+                self.command_history = json.loads(HISTORY_FILE.read_text("utf-8"))
+            else:
+                self.command_history = []
+        except Exception:
+            self.command_history = []
+
+    def save_history(self) -> None:
+        HISTORY_FILE.write_text(json.dumps(self.command_history, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # --------------------------------------------------
+    # SAFE COMMAND EXECUTION
     # --------------------------------------------------
 
     def run_command_safe(self, cmd: str) -> None:
         log = self.query_one("#log", RichLog)
         log.write(f"[#b066ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
+
         try:
+            self.command_history.append(cmd)
+            self.history_index = len(self.command_history)
+            self.save_history()
             self.run_command(cmd)
         except Exception:
             log.write("[bold red]INTERNAL ERROR[/]")
             log.write(escape(traceback.format_exc()))
+
+    # --------------------------------------------------
+    # COMMAND ROUTER
+    # --------------------------------------------------
 
     def run_command(self, cmd: str) -> None:
         low = cmd.lower()
         log = self.query_one("#log", RichLog)
 
         if low == "pantham":
-            # ask for password
-            pw = getpass("Enter master password: ")
-            if pw != self.master_password:
-                log.write("[red]Incorrect password![/]")
-                return
             self.pantha_mode = True
             self.show_pantha_ascii()
             self.update_status("PANTHAM MODE ONLINE")
@@ -240,10 +220,6 @@ class PanthaTerminal(App):
             self.update_status("Cleared")
             return
 
-        if low == "help":
-            self.show_help()
-            return
-
         log.write(f"[red]Unknown command:[/] {escape(cmd)}")
 
     # --------------------------------------------------
@@ -251,22 +227,40 @@ class PanthaTerminal(App):
     # --------------------------------------------------
 
     def update_status(self, text: str) -> None:
-        self.query_one("#status_line", Static).update(f"[#ff4dff]STATUS:[/] {escape(text)}")
+        self.query_one("#status_line", Static).update(
+            f"[#ff4dff]STATUS:[/] {escape(text)}"
+        )
 
     # --------------------------------------------------
-    # NOTE COMMANDS
+    # NOTES
     # --------------------------------------------------
+
+    def require_pantha(self) -> bool:
+        if not self.pantha_mode:
+            self.query_one("#log", RichLog).write(
+                "[red]Notes locked. Enter [bold]pantham[/] first.[/]"
+            )
+            return False
+        return True
 
     def handle_note_command(self, cmd: str) -> None:
         if not self.require_pantha():
             return
+
         log = self.query_one("#log", RichLog)
-        parts = cmd.split(maxsplit=2)
-        if len(parts) < 2:
-            log.write("[yellow]Usage: note list|create|view|write|delete|export|import[/]")
+        try:
+            parts = shlex_split(cmd)  # Handles quotes for multi-word titles
+        except Exception:
+            log.write("[red]Failed to parse command.[/]")
             return
+
+        if len(parts) < 2:
+            log.write("[yellow]Usage: note list|create|view|write|append|delete|rename|search|export|import[/]")
+            return
+
         action = parts[1].lower()
 
+        # ----------------- LIST -----------------
         if action == "list":
             if not self.notes:
                 log.write("[gray]No notes found.[/]")
@@ -276,6 +270,7 @@ class PanthaTerminal(App):
                 log.write(f"• {escape(t)}")
             return
 
+        # ----------------- CREATE -----------------
         if action == "create":
             if len(parts) < 3:
                 log.write("[yellow]note create <title>[/]")
@@ -289,10 +284,8 @@ class PanthaTerminal(App):
             log.write(f"[green]Created note:[/] {escape(title)}")
             return
 
+        # ----------------- VIEW -----------------
         if action == "view":
-            if len(parts) < 3:
-                log.write("[yellow]note view <title>[/]")
-                return
             title = parts[2]
             if title not in self.notes:
                 log.write("[red]Note not found.[/]")
@@ -301,11 +294,12 @@ class PanthaTerminal(App):
             log.write(f"[bold]{escape(title)}[/]\n{content}")
             return
 
+        # ----------------- WRITE -----------------
         if action == "write":
-            if len(parts) < 3 or " " not in parts[2]:
+            if len(parts) < 4:
                 log.write("[yellow]note write <title> <text>[/]")
                 return
-            title, text = parts[2].split(" ", 1)
+            title, text = parts[2], " ".join(parts[3:])
             if title not in self.notes:
                 log.write("[red]Note not found.[/]")
                 return
@@ -314,10 +308,22 @@ class PanthaTerminal(App):
             log.write(f"[green]Updated note:[/] {escape(title)}")
             return
 
-        if action == "delete":
-            if len(parts) < 3:
-                log.write("[yellow]note delete <title>[/]")
+        # ----------------- APPEND -----------------
+        if action == "append":
+            if len(parts) < 4:
+                log.write("[yellow]note append <title> <text>[/]")
                 return
+            title, text = parts[2], " ".join(parts[3:])
+            if title not in self.notes:
+                log.write("[red]Note not found.[/]")
+                return
+            self.notes[title] += "\n" + text
+            self.save_notes()
+            log.write(f"[green]Appended to note:[/] {escape(title)}")
+            return
+
+        # ----------------- DELETE -----------------
+        if action == "delete":
             title = parts[2]
             if title not in self.notes:
                 log.write("[red]Note not found.[/]")
@@ -327,6 +333,39 @@ class PanthaTerminal(App):
             log.write(f"[green]Deleted note:[/] {escape(title)}")
             return
 
+        # ----------------- RENAME -----------------
+        if action == "rename":
+            if len(parts) < 4:
+                log.write("[yellow]note rename <old> <new>[/]")
+                return
+            old, new = parts[2], parts[3]
+            if old not in self.notes:
+                log.write("[red]Note not found.[/]")
+                return
+            if new in self.notes:
+                log.write("[red]A note with that name already exists.[/]")
+                return
+            self.notes[new] = self.notes.pop(old)
+            self.save_notes()
+            log.write(f"[green]Renamed note:[/] {escape(old)} → {escape(new)}")
+            return
+
+        # ----------------- SEARCH -----------------
+        if action == "search":
+            if len(parts) < 3:
+                log.write("[yellow]note search <keyword>[/]")
+                return
+            keyword = " ".join(parts[2:])
+            found = [t for t, c in self.notes.items() if keyword.lower() in c.lower()]
+            if not found:
+                log.write("[gray]No notes contain that keyword.[/]")
+                return
+            log.write(f"[bold]Notes containing '{escape(keyword)}':[/]")
+            for t in found:
+                log.write(f"• {escape(t)}")
+            return
+
+        # ----------------- EXPORT -----------------
         if action == "export":
             if len(parts) < 3:
                 log.write("[yellow]note export <title>[/]")
@@ -335,34 +374,35 @@ class PanthaTerminal(App):
             if title not in self.notes:
                 log.write("[red]Note not found.[/]")
                 return
-            with open(Path.cwd() / f"{title}.txt", "w", encoding="utf-8") as f:
-                f.write(self.notes[title])
-            log.write(f"[green]Exported note:[/] {escape(title)}.txt")
+            export_file = user_data_dir() / f"{title}.txt"
+            export_file.write_text(self.notes[title], encoding="utf-8")
+            log.write(f"[green]Exported note:[/] {escape(title)} → {export_file}")
             return
 
+        # ----------------- IMPORT -----------------
         if action == "import":
             if len(parts) < 3:
-                log.write("[yellow]note import <filename>[/]")
+                log.write("[yellow]note import <file_path>[/]")
                 return
-            file = Path(parts[2])
-            if not file.exists() or not file.is_file():
+            path = Path(parts[2])
+            if not path.exists() or not path.is_file():
                 log.write("[red]File not found.[/]")
                 return
-            title = file.stem
-            text = file.read_text("utf-8")
-            self.notes[title] = text
+            title = path.stem
+            self.notes[title] = path.read_text(encoding="utf-8")
             self.save_notes()
-            log.write(f"[green]Imported note:[/] {escape(title)}")
+            log.write(f"[green]Imported note:[/] {escape(title)} from {path}")
             return
 
         log.write("[yellow]Unknown note command.[/]")
 
     # --------------------------------------------------
-    # PANtham ASCII + COMMANDS
+    # PANTHAM ASCII + COMMANDS
     # --------------------------------------------------
 
     def show_pantha_ascii(self) -> None:
         ascii_art = r"""
+                                            
 ⠀⠀⠀⠀⠀⠀ ⠀/\_/\                                 
    ____/ o o \                             
  /~____  =ø= /                                           (`\ 
@@ -373,45 +413,33 @@ class PanthaTerminal(App):
 ██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
+
+      ░▒▓█▓▒░  P A N T H A M   N O T E S  G R A N T E D  ░▒▓█▓▒░
 """
+
         commands = """
 [bold #ff4dff]PANTHAM COMMANDS[/]
 [#b066ff]────────────────[/]
 
-[#ffffff]note list[/]
-[#ffffff]note create <title>[/]
-[#ffffff]note view <title>[/]
-[#ffffff]note write <title> <text>[/]
-[#ffffff]note delete <title>[/]
-[#ffffff]note export <title>[/]
-[#ffffff]note import <file>[/]
+[#ffffff]note list
+note create <title>
+note view <title>
+note write <title> <text>
+note append <title> <text>
+note delete <title>
+note rename <old> <new>
+note search <keyword>
+note export <title>
+note import <file_path>[/]
 
-[#888888]CTRL+L → clear[/]
-[#888888]CTRL+C → quit[/]
-[#888888]pantham off[/]
-[#888888]help → show this menu[/]
+[#888888]CTRL+L → clear
+CTRL+C → quit
+pantham off[/]
 """
         log = self.query_one("#log", RichLog)
         log.write(f"[bold #ff4dff]{ascii_art}[/]")
         log.write(commands)
 
-    def show_help(self) -> None:
-        log = self.query_one("#log", RichLog)
-        log.write("[bold #ff4dff]Available Commands[/]")
-        log.write("""
-pantham            → enter Pantham mode
-pantham off        → exit Pantham mode
-clear              → clear terminal
-exit / quit        → quit terminal
-help               → show this help menu
-note list          → list all notes
-note create <title>→ create new note
-note view <title>  → view note
-note write <title> <text> → write or overwrite note
-note delete <title>→ delete note
-note export <title>→ export note to txt
-note import <file> → import note from txt
-""")
 
 # --------------------------------------------------
 # ENTRY
