@@ -29,13 +29,7 @@ def user_data_dir() -> Path:
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
-            r"""
-
-       \    /\
-        )  ( ')
-       (  /  )
-\(__)|
-            
+            r"""      
      ^---^
     ( . . )        \    /\
     (___'_)         )  ( ')       |\__/,|   (`\      
@@ -48,7 +42,7 @@ v1  ( | | )___      (  /  )     _.|o o  |_   ) )
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
 
-        ░▒▓█▓▒░  P A N T H A   T E R M I N A L  ░▒▓█▓▒░
+░▒▓█▓▒░    P A N T H A   T E R M I N A L    ░▒▓█▓▒░
 """
         )
 
