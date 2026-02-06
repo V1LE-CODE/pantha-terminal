@@ -1,6 +1,6 @@
-# 🐆 Pantha Terminal
+# 🐈‍⬛ Pantha Terminal
 
-![Alt text](path/to/banner.bmp) 
+![Alt text]([path/to/banner.bmp](https://github.com/V1LE-CODE/pantha-terminal/blob/c9245ec4de2070dd380213a7a1314d2cb7e229ee/assets/banner.bmp)) 
 
 **Pantha Terminal** is a sleek, purple-aesthetic, terminal-style note-taking app with a mystical **Pantham Mode**. Unlock advanced note management commands, manage your notes securely, and enjoy a fun terminal experience with ASCII art, keyboard shortcuts, and a magical workflow.
 
