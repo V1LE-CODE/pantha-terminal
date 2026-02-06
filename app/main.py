@@ -12,7 +12,7 @@ from textual.reactive import reactive
 
 
 # --------------------------------------------------
-# RESOURCE PATH
+# RESOURCE PATH (PYINSTALLER SAFE)
 # --------------------------------------------------
 
 def resource_path(relative: str) -> str:
@@ -54,7 +54,7 @@ v1  ( | | )___
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal V1.0.0"
+    SUB_TITLE = "Official Pantha Terminal v1.0.0"
 
     CSS_PATH = None
     status_text: reactive[str] = reactive("Ready")
@@ -113,9 +113,10 @@ class PanthaTerminal(App):
                             id="system_info",
                         )
 
-                        yield Static("NOTES (PANTHAM)", id="panel_title2")
+                        yield Static("COMMANDS", id="panel_title2")
                         yield Static(
                             "pantham\n"
+                            "pantham off\n"
                             "note list\n"
                             "note create <title>\n"
                             "note view <title>\n"
@@ -128,7 +129,12 @@ class PanthaTerminal(App):
                         yield Static("OUTPUT", id="output_title")
 
                         with ScrollableContainer(id="log_wrap"):
-                            yield RichLog(id="log", highlight=True, markup=True, wrap=True)
+                            yield RichLog(
+                                id="log",
+                                highlight=True,
+                                markup=True,
+                                wrap=True,
+                            )
 
                         yield Static("", id="status_line")
                         yield Input(
@@ -147,9 +153,22 @@ class PanthaTerminal(App):
 
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
-        log.write("[#b066ff]Type [bold]pantham[/] to awaken notes.[/]")
+        log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
         self.update_status("Ready")
 
+        self.refocus_input()
+
+    # --------------------------------------------------
+    # INPUT
+    # --------------------------------------------------
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        cmd = event.value.strip()
+        event.input.value = ""
+        self.run_command(cmd)
+        event.input.focus()
+
+    def refocus_input(self) -> None:
         self.query_one("#command_input", Input).focus()
 
     # --------------------------------------------------
@@ -186,17 +205,17 @@ class PanthaTerminal(App):
     def require_pantha(self) -> bool:
         if not self.pantha_mode:
             self.query_one("#log", RichLog).write(
-                "[red]Notes locked. Enter [bold]pantham[/] mode first.[/]"
+                "[red]Notes locked. Enter [bold]pantham[/] first.[/]"
             )
             return False
         return True
 
-    def handle_note_command(self, raw: str) -> None:
+    def handle_note_command(self, cmd: str) -> None:
         if not self.require_pantha():
             return
 
         log = self.query_one("#log", RichLog)
-        parts = raw.split(maxsplit=2)
+        parts = cmd.split(maxsplit=2)
 
         if len(parts) < 2:
             log.write("[yellow]Usage: note [list|create|view|write|delete][/]")
@@ -217,6 +236,7 @@ class PanthaTerminal(App):
             if len(parts) < 3:
                 log.write(f"[yellow]note {action} <title>[/]")
                 return
+
             title = parts[2]
 
             if action == "create":
@@ -247,6 +267,7 @@ class PanthaTerminal(App):
             if len(parts) < 3 or " " not in parts[2]:
                 log.write("[yellow]note write <title> <text>[/]")
                 return
+
             title, text = parts[2].split(" ", 1)
 
             if title not in self.notes:
@@ -287,6 +308,7 @@ class PanthaTerminal(App):
 
     def run_command(self, cmd: str) -> None:
         if not cmd:
+            self.refocus_input()
             return
 
         self.command_history.append(cmd)
@@ -301,21 +323,25 @@ class PanthaTerminal(App):
             self.pantha_mode = True
             self.show_pantha_ascii()
             self.update_status("PANTHAM MODE ONLINE")
+            self.refocus_input()
             return
 
         if low == "pantham off":
             self.pantha_mode = False
             log.write("[gray]Pantham disengaged.[/]")
             self.update_status("PANTHAM MODE OFF")
+            self.refocus_input()
             return
 
         if low.startswith("note"):
             self.handle_note_command(cmd)
+            self.refocus_input()
             return
 
         if low == "clear":
             log.clear()
             self.update_status("Cleared")
+            self.refocus_input()
             return
 
         if low in ("exit", "quit"):
@@ -323,7 +349,12 @@ class PanthaTerminal(App):
             return
 
         log.write(f"[red]Unknown command: {cmd}[/]")
+        self.refocus_input()
 
+
+# --------------------------------------------------
+# ENTRY
+# --------------------------------------------------
 
 if __name__ == "__main__":
     PanthaTerminal().run()
