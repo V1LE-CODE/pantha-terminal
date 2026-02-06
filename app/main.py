@@ -1,12 +1,12 @@
+from __future__ import annotations
 import os
-import subprocess
 from pathlib import Path
-import asyncio
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, ScrollableContainer
-from textual.widgets import Header, Footer, Input, Static, RichLog
+from textual.widgets import Header, Footer, Input, Static, RichLog, TextArea
 from textual.reactive import reactive
+from textual import events
 
 
 class PanthaBanner(Static):
@@ -28,6 +28,38 @@ v1  ( | | )___
         ░▒▓█▓▒░  P A N T H A   T E R M I N A L  ░▒▓█▓▒░
 """
         )
+
+
+class NoteEditor(Vertical):
+    """A full-screen note editor inside Textual."""
+
+    def __init__(self, path: Path, callback, **kwargs):
+        super().__init__(**kwargs)
+        self.path = path
+        self.callback = callback
+        self.text_area = TextArea()
+        self.load_note()
+
+    def load_note(self):
+        if self.path.exists():
+            self.text_area.value = self.path.read_text()
+        else:
+            self.text_area.value = ""
+
+    def compose(self) -> ComposeResult:
+        yield Static(f"Editing Note: {self.path.name} — [Ctrl+S] save, [Ctrl+Q] cancel", id="note_title")
+        yield self.text_area
+
+    async def on_key(self, event: events.Key) -> None:
+        if event.key == "ctrl+s":
+            self.path.write_text(self.text_area.value)
+            self.callback(f"Saved note: {self.path.name}")
+            self.remove()
+            event.stop()
+        elif event.key == "ctrl+q":
+            self.callback(f"Cancelled note: {self.path.name}")
+            self.remove()
+            event.stop()
 
 
 class PanthaTerminal(App):
@@ -92,21 +124,14 @@ class PanthaTerminal(App):
 
     def update_status(self, text: str) -> None:
         self.status_text = text
-        self.query_one("#status_line", Static).update(
-            f"[#ff4dff]STATUS:[/] [#ffffff]{text}[/]"
-        )
+        self.query_one("#status_line", Static).update(f"[#ff4dff]STATUS:[/] [#ffffff]{text}[/]")
 
     def prompt(self) -> str:
         return f"[#b066ff]{self.username}[/]@[#ff4dff]{self.hostname}[/]:[#ffffff]~$[/]"
 
-    async def run_editor(self, path: Path):
-        editor = os.environ.get("EDITOR", "nano" if os.name != "nt" else "notepad")
-        await asyncio.to_thread(subprocess.call, [editor, str(path)])
-
     def run_command(self, cmd: str):
         if not cmd:
             return
-
         self.command_history.append(cmd)
         self.history_index = len(self.command_history)
         log = self.query_one(RichLog)
@@ -132,7 +157,6 @@ class PanthaTerminal(App):
             if low in ("exit", "quit"):
                 self.exit()
                 return
-            subprocess.call(cmd, shell=True)
             return
 
         # Pantham commands
@@ -142,61 +166,50 @@ class PanthaTerminal(App):
             self.pending_note_action = "add"
             return
         if low.startswith("open note"):
-            self.open_note_autocomplete(cmd, action="open")
+            parts = cmd.split(maxsplit=2)
+            if len(parts) < 3:
+                log.write("[#ff4dff]Usage: open note <name>[/]")
+                return
+            self.open_note(parts[2])
             return
         if low.startswith("delete note"):
-            self.open_note_autocomplete(cmd, action="delete")
+            parts = cmd.split(maxsplit=2)
+            if len(parts) < 3:
+                log.write("[#ff4dff]Usage: delete note <name>[/]")
+                return
+            self.delete_note(parts[2])
             return
+
         log.write(f"[red]Unknown Pantham command:[/] {cmd}")
 
     def on_input_submitted(self, event):
         cmd = event.value.strip()
         event.input.value = ""
-
         if self.awaiting_note_name:
             self.awaiting_note_name = False
-            asyncio.create_task(self.add_note_editor(cmd))
+            note_path = self.notes_dir / f"{cmd}.txt"
+            self.mount(NoteEditor(note_path, callback=self.note_done), before="#frame")
             return
-
         self.run_command(cmd)
 
-    async def add_note_editor(self, note_name: str):
+    def note_done(self, message: str):
         log = self.query_one(RichLog)
-        note_name = note_name.strip()
-        if not note_name:
-            log.write("[red]Cancelled: no name provided[/]")
-            return
-        path = self.notes_dir / f"{note_name}.txt"
-        if path.exists():
-            log.write(f"[red]Note already exists:[/] {note_name}")
-            return
-        await self.run_editor(path)
-        if path.exists() and path.stat().st_size > 0:
-            log.write(f"[green]Note saved:[/] {path.name}")
-        else:
-            if path.exists():
-                path.unlink()
-            log.write("[yellow]Empty note discarded[/]")
+        log.write(f"[green]{message}[/]")
 
-    def open_note_autocomplete(self, cmd: str, action: str):
-        log = self.query_one(RichLog)
-        parts = cmd.split(maxsplit=2)
-        if len(parts) < 3:
-            log.write(f"[#ff4dff]Usage: {action} note <name>[/]")
+    def open_note(self, name: str):
+        path = self.notes_dir / f"{name}.txt"
+        if not path.exists():
+            self.query_one(RichLog).write(f"[red]Note not found:[/] {name}")
             return
-        name = parts[2]
-        matches = [n.stem for n in self.notes_dir.glob("*.txt") if n.stem.startswith(name)]
-        if not matches:
-            log.write(f"[red]No matching note found:[/] {name}")
+        self.mount(NoteEditor(path, callback=self.note_done), before="#frame")
+
+    def delete_note(self, name: str):
+        path = self.notes_dir / f"{name}.txt"
+        if not path.exists():
+            self.query_one(RichLog).write(f"[red]Note not found:[/] {name}")
             return
-        final_name = matches[0]
-        path = self.notes_dir / f"{final_name}.txt"
-        if action == "open":
-            asyncio.create_task(self.run_editor(path))
-            log.write(f"[green]Opened note:[/] {path.name}")
-        elif action == "delete":
-            path.unlink()
-            log.write(f"[green]Deleted note:[/] {path.name}")
+        path.unlink()
+        self.query_one(RichLog).write(f"[green]Deleted note:[/] {name}")
 
     def show_pantha_ascii(self):
         ascii_art = r"""
@@ -214,8 +227,7 @@ class PanthaTerminal(App):
       ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
       ░▒▓█▓▒░  SYSTEM • TERMINAL • CONTROL      ░▒▓█▓▒░
 """
-        log = self.query_one(RichLog)
-        log.write("[bold #ff4dff]" + ascii_art + "[/]")
+        self.query_one(RichLog).write("[bold #ff4dff]" + ascii_art + "[/]")
 
 if __name__ == "__main__":
     PanthaTerminal().run()
