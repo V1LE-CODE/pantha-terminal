@@ -29,20 +29,15 @@ WizardStyle=modern
 
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-UninstallDisplayName={#MyAppName} {#MyAppVersion}
 
 WizardResizable=no
 DisableProgramGroupPage=yes
 
-; ✅ DO NOT REQUIRE ADMIN (prevents broken installs)
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64
 
 UsePreviousAppDir=yes
 UsePreviousGroup=yes
-
-CloseApplications=yes
-RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -52,23 +47,26 @@ Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
 Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
 
 [Files]
-; ✅ Copy EVERYTHING including the EXE
+; ★ ONEDIR build output
 Source: "..\dist\PanthaTerminal\*"; \
   DestDir: "{app}"; \
   Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
+; ★ Use EXE icon directly
 Name: "{group}\{#MyAppName}"; \
-  Filename: "{app}\{#MyAppExeName}"
+  Filename: "{app}\{#MyAppExeName}"; \
+  IconFilename: "{app}\{#MyAppExeName}"
 
 Name: "{commondesktop}\{#MyAppName}"; \
   Filename: "{app}\{#MyAppExeName}"; \
+  IconFilename: "{app}\{#MyAppExeName}"; \
   Tasks: desktopicon
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   ValueType: string; ValueName: "{#MyAppName}"; \
-  ValueData: "{app}\{#MyAppExeName}"; \
+  ValueData: """{app}\{#MyAppExeName}"""; \
   Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
