@@ -54,7 +54,7 @@ exit / quit  # Exit Pantha Terminal
 pantham off  # Deactivate Pantham Mode
 ```
 
-** PANTHAM Commands
+*** PANTHAM Commands 
 
 ```bash
 PANTHAM COMMANDS
@@ -70,7 +70,7 @@ CTRL+C → quit
 pantham off
 ```
 
-** README
+**8 README
 ```bash
 This README is designed to:
 
@@ -82,3 +82,8 @@ This README is designed to:
 ```
 
 Would You Like To Help Make Pantha Better? Join  The V1LE-CODE Team :) Our Goal Is To Make The Best & Go-To Note Storer For Large commercial storing At The Price Of $0 Thats Right Free, Used By Companys & Home Computers
+```bash
+Developers Include
+v1ledev
+missusv1le
+```
