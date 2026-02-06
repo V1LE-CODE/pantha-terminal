@@ -1,117 +1,44 @@
-# 🐈‍⬛️ Pantha 🐈‍⬛️
+# 🐆 Pantha Terminal
 
-> **A next‑generation terminal‑style interface for market data, and assets.**
+![Pantha Terminal Banner](assets/banner.bmp)  
 
-Pantha Terminal is a custom-built, hacker‑aesthetic terminal application designed to explore **stocks, assets, and financial data** through a fast, keyboard‑driven interface. Inspired by classic system terminals and modern market dashboards, Pantha blends style, extensibility, and power.
-
-This project is currently in **early development** and focused on building a strong foundation for a future **market + paper‑trading terminal**.
+**Pantha Terminal** is a sleek, purple-aesthetic, terminal-style note-taking app with a mystical **Pantham Mode**. Unlock advanced note management commands, manage your notes securely, and enjoy a fun terminal experience with ASCII art, keyboard shortcuts, and a magical workflow.
 
 ---
 
-## ✨ Features
-
-### 🖥️ Terminal‑First Interface
-
-* Built using **Textual (TUI framework)**
-* Fully keyboard‑driven
-* Scrollable output log
-* Command history (↑ / ↓)
-* Custom prompt with user + host
-
-### 🎨 Visual Identity
-
-* Signature **dark purple glow aesthetic**
-* Custom ASCII banners
-* Mode‑based visual output
-* Minimal, clean layout inspired by hacker terminals
-
-### 🐆 Pantham Mode
-
-* Toggleable terminal mode
-* Displays a unique ASCII system banner
-* Designed to evolve into advanced system / market modes
-
-### ⚙️ Core Commands
-
-* `clear` — Clear terminal output
-* `pantham` — Enable Pantha Mode
-* `pantham off` — Disable Pantha Mode
-* `exit` / `quit` — Exit the terminal
-
-*(More commands coming soon)*
+![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-purple)
+![Platform](https://img.shields.io/badge/platform-Cross--Platform-brightgreen)
+![GitHub stars](https://img.shields.io/github/stars/yourusername/pantha-terminal?style=social)
 
 ---
 
-## 📈 Planned Market Features (Roadmap)
+## 🎯 Features
 
-Pantha Terminal is being built to become a **stock & asset terminal**, similar in spirit to a lightweight Bloomberg‑style CLI.
-
-### Planned:
-
-* 📊 Stock price lookup
-* 💱 Crypto asset tracking
-* 📉 Indicators (SMA, RSI, VWAP)
-
----
-
-## 🧠 Philosophy
-
-Pantha Terminal is built around a few key ideas:
-
-* **Terminal > GUI** — Speed, focus, control
-* **Simulation over risk** — Learn markets without real money
-* **Modular growth** — Easy to expand with new commands
-* **Style matters** — A terminal should look powerful
-
-This project is designed for developers, learners, and market enthusiasts who want a **cool, controlled, terminal‑based market experience**.
+- **Pantham Mode** – unlock the full power of note commands.
+- **Terminal-style UI** with live command input and interactive log.
+- **Persistent JSON notes** saved securely in `~/.pantha/notes.json`.
+- **Rich ASCII banners** with a magical Pantham awakening animation.
+- **Command palette** with discoverable help.
+- **Keyboard shortcuts**:
+  - `CTRL+L` → Clear output log
+  - `CTRL+C` → Quit app
+- **Purple aesthetic** with fun and readable terminal colors.
+- **Interactive notes**: list, create, view, write, delete.
 
 ---
 
-## 🛠️ Tech Stack
+## 🚀 Installation
 
-* **Python 3.10+**
-* **Textual** (Rich‑powered TUI)
-* **Rich** (logging, styling, markup)
+### Prerequisites
 
----
+- Python 3.11+
+- Pip
 
-## 👨‍💻 Developers
+### Clone & Install
 
-```
-V1LE-CE
-├── v1ledev          ● Main Developer
-├── missusv1le       ● Assisted Developer
-
-Anyones Welcome To Join We Focus On A Feature-Rich $0 Stock Terminal          
-
-```
-
----
-
-## 📌 Project Status
-
-🚧 **Early Development / Experimental**
-
-Expect breaking changes, rapid iteration, and evolving design.
-
----
-
-## 📜 License
-
-This project is released under the **MIT License**.
-
-You are free to use, modify, and extend Pantha Terminal — attribution appreciated.
-
----
-
-## 🐈‍⬛️ Final Note
-
-Pantha Terminal is more than a terminal — it’s a foundation for a **modern market interface** built with personality, power, and precision built by 2 hard working developers
-
-Stay sharp.
-Stay curious.
-
-**Pantha Terminal — Command the Market.**
-
-## License
-MIT © V1LE-CODE
+```bash
+git clone https://github.com/yourusername/pantha-terminal.git
+cd pantha-terminal/app
+pip install -r ../requirements.txt
+python main.py
