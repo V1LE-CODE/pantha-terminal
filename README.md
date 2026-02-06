@@ -9,7 +9,7 @@
 ![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-purple)
 ![Platform](https://img.shields.io/badge/platform-Cross--Platform-brightgreen)
-![GitHub stars](https://img.shields.io/github/stars/yourusername/pantha-terminal?style=social)
+![GitHub stars](https://img.shields.io/github/stars/V1LE-CODE/pantha-terminal?style=social)
 
 ---
 
@@ -81,4 +81,4 @@ This README is designed to:
 - Make GitHub visitors **understand and feel excited instantly**  
 ```
 
-Would You Like To Help Make Pantha Better? Join V!LE-CODE Team :) 
+Would You Like To Help Make Pantha Better? Join V1LE-CODE Team :) 
