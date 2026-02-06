@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import sys
-import subprocess
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -10,6 +9,7 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 
+from commands import run_command as external_command  # <- your commands.py
 
 def resource_path(relative: str) -> str:
     try:
@@ -113,7 +113,8 @@ class PanthaTerminal(App):
                             "pantham   → toggle mode\n"
                             "add note <name>\n"
                             "open note <name>\n"
-                            "delete note <name>",
+                            "delete note <name>\n"
+                            "help / about / ls / pwd / echo / time / system / exit",
                             id="hotkeys",
                         )
 
@@ -282,8 +283,16 @@ class PanthaTerminal(App):
             log.write(f"[red]Unknown Pantham command:[/] {cmd}")
             return
 
-        # Unknown command outside Pantham mode
-        log.write(f"[red]Unknown command:[/] {cmd}")
+        # External commands from commands.py
+        output, action = external_command(cmd)
+        if action == "clear":
+            log.clear()
+            self.update_status("Cleared")
+        elif action == "exit":
+            self.exit()
+        else:
+            log.write(output)
+
 
     # --------------------------------------------------
     # PANTHAM MODE ASCII
@@ -308,7 +317,6 @@ class PanthaTerminal(App):
 
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]" + ascii_art + "[/]")
-
 
 if __name__ == "__main__":
     PanthaTerminal().run()
