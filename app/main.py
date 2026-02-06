@@ -53,7 +53,7 @@ v1  ( | | )___
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal v1.0.0"
+    SUB_TITLE = "Official Pantha Terminal v1.1.2"
 
     status_text: reactive[str] = reactive("Ready")
     NOTES_FILE = user_data_dir() / "notes.json"
