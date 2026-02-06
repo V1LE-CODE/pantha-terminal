@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+import subprocess
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -9,7 +10,11 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 
-from commands import run_command as external_command  # your commands.py
+# -------------------------
+# Notes storage folder
+# -------------------------
+NOTES_DIR = Path("pantha_notes")
+NOTES_DIR.mkdir(exist_ok=True)
 
 
 def resource_path(relative: str) -> str:
@@ -33,7 +38,7 @@ v1  ( | | )___
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╚══██║██╔══██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
 
@@ -55,39 +60,30 @@ class PanthaTerminal(App):
         self.history_index = -1
         self.pantha_mode = False
 
-        # ---------------- Note system ----------------
-        self.notes_dir = Path("notes")
-        try:
-            self.notes_dir.mkdir(exist_ok=True)
-        except Exception:
-            pass
-        self.adding_note: bool = False
-        self.current_note_name: str = ""
-        self.note_buffer: list[str] = []
-
-        # ---------------- User/host ----------------
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
         self.hostname = (
             os.environ.get("COMPUTERNAME")
             or (os.uname().nodename if hasattr(os, "uname") else "local")
         )
 
-    # ---------------- Styles ----------------
+    # --------------------------------------------------
+    # STYLES
+    # --------------------------------------------------
+
     def load_tcss(self) -> None:
-        try:
-            dev = Path(__file__).parent / "styles.tcss"
-            if dev.exists() and hasattr(self, "stylesheet") and self.stylesheet:
-                self.stylesheet.read(dev)
-                return
+        dev = Path(__file__).parent / "styles.tcss"
+        if dev.exists():
+            self.stylesheet.read(dev)
+            return
 
-            packed = Path(resource_path("app/styles.tcss"))
-            if packed.exists() and hasattr(self, "stylesheet") and self.stylesheet:
-                self.stylesheet.read(packed)
-        except Exception:
-            # fail silently so app doesn't crash
-            pass
+        packed = Path(resource_path("app/styles.tcss"))
+        if packed.exists():
+            self.stylesheet.read(packed)
 
-    # ---------------- UI ----------------
+    # --------------------------------------------------
+    # UI
+    # --------------------------------------------------
+
     def compose(self) -> ComposeResult:
         with Vertical(id="frame"):
             yield Header(show_clock=True)
@@ -116,8 +112,7 @@ class PanthaTerminal(App):
                             "pantham   → toggle mode\n"
                             "add note <name>\n"
                             "open note <name>\n"
-                            "delete note <name>\n"
-                            "help / about / ls / pwd / echo / time / system / exit",
+                            "delete note <name>",
                             id="hotkeys",
                         )
 
@@ -135,7 +130,10 @@ class PanthaTerminal(App):
 
             yield Footer()
 
-    # ---------------- Lifecycle ----------------
+    # --------------------------------------------------
+    # LIFECYCLE
+    # --------------------------------------------------
+
     def on_mount(self) -> None:
         self.load_tcss()
 
@@ -146,26 +144,13 @@ class PanthaTerminal(App):
 
         self.query_one("#command_input", Input).focus()
 
-    # ---------------- Input handling ----------------
+    # --------------------------------------------------
+    # INPUT HANDLING
+    # --------------------------------------------------
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
         event.input.value = ""
-
-        log = self.query_one("#log", RichLog)
-
-        # If currently adding a note
-        if self.adding_note:
-            if cmd.lower() == "end":
-                note_path = self.notes_dir / f"{self.current_note_name}.txt"
-                note_path.write_text("\n".join(self.note_buffer))
-                log.write(f"[green]Saved note:[/] {self.current_note_name}")
-                self.adding_note = False
-                self.current_note_name = ""
-                self.note_buffer = []
-            else:
-                self.note_buffer.append(cmd)
-            return
-
         self.run_command(cmd)
 
     def on_key(self, event) -> None:
@@ -191,7 +176,10 @@ class PanthaTerminal(App):
             event.stop()
             return
 
-    # ---------------- Commands ----------------
+    # --------------------------------------------------
+    # COMMANDS
+    # --------------------------------------------------
+
     def update_status(self, text: str) -> None:
         self.status_text = text
         self.query_one("#status_line", Static).update(
@@ -213,12 +201,17 @@ class PanthaTerminal(App):
 
         low = cmd.lower()
 
-        # Built-in commands
+        # ------------------------------
+        # Clear command
+        # ------------------------------
         if low == "clear":
             log.clear()
             self.update_status("Cleared")
             return
 
+        # ------------------------------
+        # Pantham commands
+        # ------------------------------
         if low == "pantham":
             self.pantha_mode = True
             self.show_pantha_ascii()
@@ -235,59 +228,55 @@ class PanthaTerminal(App):
             self.exit()
             return
 
-        # Pantham note commands
-        if self.pantha_mode:
-            if low.startswith("add note"):
-                parts = cmd.split(maxsplit=2)
-                if len(parts) < 3:
-                    log.write("[#ff4dff]Usage: add note <name>[/]")
-                else:
-                    self.adding_note = True
-                    self.current_note_name = parts[2]
-                    self.note_buffer = []
-                    log.write(f"[#ff4dff]Adding note '{self.current_note_name}' (type lines, 'end' to save)[/]")
+        # ------------------------------
+        # Notes system commands
+        # ------------------------------
+        if low.startswith("add note "):
+            name = cmd[9:].strip()
+            if not name:
+                log.write("[red]Error: Note name required[/]")
                 return
-
-            if low.startswith("open note"):
-                parts = cmd.split(maxsplit=2)
-                if len(parts) < 3:
-                    log.write("[#ff4dff]Usage: open note <name>[/]")
-                else:
-                    path = self.notes_dir / f"{parts[2]}.txt"
-                    if path.exists():
-                        log.write(f"[green]Contents of {parts[2]}:[/]\n{path.read_text()}")
-                    else:
-                        log.write(f"[red]Note not found:[/] {parts[2]}")
-                return
-
-            if low.startswith("delete note"):
-                parts = cmd.split(maxsplit=2)
-                if len(parts) < 3:
-                    log.write("[#ff4dff]Usage: delete note <name>[/]")
-                else:
-                    path = self.notes_dir / f"{parts[2]}.txt"
-                    if path.exists():
-                        path.unlink()
-                        log.write(f"[green]Deleted note:[/] {parts[2]}")
-                    else:
-                        log.write(f"[red]Note not found:[/] {parts[2]}")
-                return
-
-            # Unknown Pantham command
-            log.write(f"[red]Unknown Pantham command:[/] {cmd}")
+            note_path = NOTES_DIR / f"{name}.txt"
+            log.write(f"[green]Adding note '{name}'. Enter content line by line. End with a single '.' on a line.[/]")
+            content_lines = []
+            while True:
+                line = input("> ")
+                if line.strip() == ".":
+                    break
+                content_lines.append(line)
+            note_path.write_text("\n".join(content_lines))
+            log.write(f"[green]Note '{name}' saved.[/]")
             return
 
-        # External commands from commands.py
-        output, action = external_command(cmd)
-        if action == "clear":
-            log.clear()
-            self.update_status("Cleared")
-        elif action == "exit":
-            self.exit()
-        else:
-            log.write(output)
+        if low.startswith("open note "):
+            name = cmd[10:].strip()
+            note_path = NOTES_DIR / f"{name}.txt"
+            if note_path.exists():
+                log.write(f"[yellow]Contents of note '{name}':[/]")
+                log.write(note_path.read_text())
+            else:
+                log.write(f"[red]Note '{name}' does not exist.[/]")
+            return
 
-    # ---------------- Pantham ASCII ----------------
+        if low.startswith("delete note "):
+            name = cmd[12:].strip()
+            note_path = NOTES_DIR / f"{name}.txt"
+            if note_path.exists():
+                note_path.unlink()
+                log.write(f"[red]Note '{name}' deleted.[/]")
+            else:
+                log.write(f"[red]Note '{name}' does not exist.[/]")
+            return
+
+        # ------------------------------
+        # Default: run shell
+        # ------------------------------
+        self.run_shell(cmd)
+
+    # --------------------------------------------------
+    # PANTHAM MODE ASCII
+    # --------------------------------------------------
+
     def show_pantha_ascii(self) -> None:
         ascii_art = r"""
 ⠀⠀⠀⠀⠀⠀⠀/\_/\ 
@@ -297,13 +286,14 @@ class PanthaTerminal(App):
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╚══██║██╔══██║██║╚██╔╝██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
 
       ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
       ░▒▓█▓▒░  SYSTEM • TERMINAL • CONTROL      ░▒▓█▓▒░
 """
+
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]" + ascii_art + "[/]")
 
