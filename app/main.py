@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
-import subprocess
+import json
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -10,6 +10,10 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 
+
+# --------------------------------------------------
+# RESOURCE PATH (PYINSTALLER SAFE)
+# --------------------------------------------------
 
 def resource_path(relative: str) -> str:
     try:
@@ -19,11 +23,14 @@ def resource_path(relative: str) -> str:
     return os.path.join(base_path, relative)
 
 
+# --------------------------------------------------
+# BANNER
+# --------------------------------------------------
+
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
             r"""
-
      ^---^
     ( . . )
     (___'_)
@@ -41,6 +48,10 @@ v1  ( | | )___
         )
 
 
+# --------------------------------------------------
+# APP
+# --------------------------------------------------
+
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal V1.0.0"
@@ -48,8 +59,11 @@ class PanthaTerminal(App):
     CSS_PATH = None
     status_text: reactive[str] = reactive("Ready")
 
+    NOTES_FILE = Path(__file__).parent / "notes.json"
+
     def __init__(self) -> None:
         super().__init__()
+
         self.command_history: list[str] = []
         self.history_index = -1
         self.pantha_mode = False
@@ -59,6 +73,9 @@ class PanthaTerminal(App):
             os.environ.get("COMPUTERNAME")
             or (os.uname().nodename if hasattr(os, "uname") else "local")
         )
+
+        self.notes: dict[str, str] = {}
+        self.load_notes()
 
     # --------------------------------------------------
     # STYLES
@@ -92,18 +109,18 @@ class PanthaTerminal(App):
                             f"• User: {self.username}\n"
                             f"• Host: {self.hostname}\n"
                             "• Pantha Terminal\n"
-                            "• Purple Aesthetic\n"
-                            "• Pantham Mode",
+                            "• Notes Enabled\n"
+                            "• Purple Aesthetic",
                             id="system_info",
                         )
 
-                        yield Static("HOTKEYS", id="panel_title2")
+                        yield Static("COMMANDS", id="panel_title2")
                         yield Static(
-                            "ENTER     → run command\n"
-                            "UP/DOWN   → history\n"
-                            "CTRL+C    → quit\n"
-                            "CTRL+L    → clear log\n"
-                            "pantham   → toggle mode",
+                            "note list\n"
+                            "note create <title>\n"
+                            "note view <title>\n"
+                            "note write <title> <text>\n"
+                            "note delete <title>",
                             id="hotkeys",
                         )
 
@@ -130,13 +147,13 @@ class PanthaTerminal(App):
 
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
-        log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
+        log.write("[#b066ff]Notes system initialized.[/]")
         self.update_status("Ready")
 
         self.query_one("#command_input", Input).focus()
 
     # --------------------------------------------------
-    # INPUT HANDLING
+    # INPUT
     # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -144,31 +161,8 @@ class PanthaTerminal(App):
         event.input.value = ""
         self.run_command(cmd)
 
-    def on_key(self, event) -> None:
-        inp = self.query_one("#command_input", Input)
-
-        if event.key == "ctrl+l":
-            self.query_one("#log", RichLog).clear()
-            self.update_status("Cleared")
-            event.stop()
-            return
-
-        if event.key == "up" and self.command_history:
-            self.history_index = max(0, self.history_index - 1)
-            inp.value = self.command_history[self.history_index]
-            inp.cursor_position = len(inp.value)
-            event.stop()
-            return
-
-        if event.key == "down" and self.command_history:
-            self.history_index = min(len(self.command_history), self.history_index + 1)
-            inp.value = "" if self.history_index >= len(self.command_history) else self.command_history[self.history_index]
-            inp.cursor_position = len(inp.value)
-            event.stop()
-            return
-
     # --------------------------------------------------
-    # COMMANDS
+    # STATUS
     # --------------------------------------------------
 
     def update_status(self, text: str) -> None:
@@ -179,6 +173,94 @@ class PanthaTerminal(App):
 
     def prompt(self) -> str:
         return f"[#b066ff]{self.username}[/]@[#ff4dff]{self.hostname}[/]:[#ffffff]~$[/]"
+
+    # --------------------------------------------------
+    # NOTES
+    # --------------------------------------------------
+
+    def load_notes(self) -> None:
+        if self.NOTES_FILE.exists():
+            try:
+                with open(self.NOTES_FILE, "r", encoding="utf-8") as f:
+                    self.notes = json.load(f)
+            except Exception:
+                self.notes = {}
+        else:
+            self.notes = {}
+
+    def save_notes(self) -> None:
+        with open(self.NOTES_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.notes, f, indent=2, ensure_ascii=False)
+
+    def handle_note_command(self, args: list[str]) -> None:
+        log = self.query_one("#log", RichLog)
+
+        if not args:
+            log.write("[yellow]Usage: note [list|create|view|write|delete][/]")
+            return
+
+        action = args[0].lower()
+
+        if action == "list":
+            if not self.notes:
+                log.write("[gray]No notes found.[/]")
+                return
+            log.write("[bold]Notes:[/]")
+            for title in self.notes:
+                log.write(f"• {title}")
+            return
+
+        if action == "create":
+            title = " ".join(args[1:])
+            if not title:
+                log.write("[yellow]note create <title>[/]")
+                return
+            if title in self.notes:
+                log.write(f"[red]Note '{title}' already exists.[/]")
+                return
+            self.notes[title] = ""
+            self.save_notes()
+            log.write(f"[green]Created note '{title}'.[/]")
+            return
+
+        if action == "view":
+            title = " ".join(args[1:])
+            if title not in self.notes:
+                log.write(f"[red]Note '{title}' not found.[/]")
+                return
+            content = self.notes[title] or "[gray]<empty>[/]"
+            log.write(f"[bold]{title}[/]\n{content}")
+            return
+
+        if action == "write":
+            if len(args) < 3:
+                log.write("[yellow]note write <title> <text>[/]")
+                return
+            title = args[1]
+            text = " ".join(args[2:])
+            if title not in self.notes:
+                log.write(f"[red]Note '{title}' not found.[/]")
+                return
+            self.notes[title] = text
+            self.save_notes()
+            log.write(f"[green]Updated note '{title}'.[/]")
+            return
+
+        if action == "delete":
+            title = " ".join(args[1:])
+            if title not in self.notes:
+                log.write(f"[red]Note '{title}' not found.[/]")
+                return
+            del self.notes[title]
+            self.save_notes()
+            log.write(f"[green]Deleted note '{title}'.[/]")
+            return
+
+        log.write(f"[yellow]Unknown note command: {action}[/]")
+
+    # --------------------------------------------------
+    # COMMAND ROUTER
+    # --------------------------------------------------
 
     def run_command(self, cmd: str) -> None:
         if not cmd:
@@ -192,53 +274,25 @@ class PanthaTerminal(App):
 
         low = cmd.lower()
 
+        if low.startswith("note"):
+            self.handle_note_command(cmd.split()[1:])
+            return
+
         if low == "clear":
             log.clear()
             self.update_status("Cleared")
-            return
-
-        if low == "pantham":
-            self.pantha_mode = True
-            self.show_pantha_ascii()
-            self.update_status("PANTHAM MODE ONLINE")
-            return
-
-        if low == "pantham off":
-            self.pantha_mode = False
-            log.write("[#888888]Pantham Mode disengaged.[/]")
-            self.update_status("PANTHAM MODE OFF")
             return
 
         if low in ("exit", "quit"):
             self.exit()
             return
 
-        self.run_shell(cmd)
+        log.write(f"[red]Unknown command: {cmd}[/]")
 
-    # --------------------------------------------------
-    # PANTHAM MODE ASCII
-    # --------------------------------------------------
 
-    def show_pantha_ascii(self) -> None:
-        ascii_art = r"""
-⠀⠀⠀⠀⠀⠀⠀/\_/\
-   ____/ o o \
- /~____  =ø= /
-(______)__m_m)
-██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗
-██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║
-██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
-██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
-╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
-
-      ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
-      ░▒▓█▓▒░  SYSTEM • TERMINAL • CONTROL      ░▒▓█▓▒░
-"""
-
-        log = self.query_one("#log", RichLog)
-        log.write("[bold #ff4dff]" + ascii_art + "[/]")
-
+# --------------------------------------------------
+# ENTRY
+# --------------------------------------------------
 
 if __name__ == "__main__":
     PanthaTerminal().run()
