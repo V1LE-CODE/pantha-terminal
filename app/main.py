@@ -13,7 +13,7 @@ from rich.markup import escape
 
 
 # --------------------------------------------------
-# USER DATA PATH (SAFE + WRITABLE)
+# USER DATA (SAFE LOCATION)
 # --------------------------------------------------
 
 def user_data_dir() -> Path:
@@ -60,7 +60,6 @@ class PanthaTerminal(App):
 
     def __init__(self) -> None:
         super().__init__()
-
         self.pantha_mode = False
         self.notes: dict[str, str] = {}
 
@@ -76,8 +75,10 @@ class PanthaTerminal(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield PanthaBanner()
+
         with ScrollableContainer():
             yield RichLog(id="log", markup=True, wrap=True)
+
         yield Static("", id="status_line")
         yield Input(id="command_input", placeholder="Type a command...")
         yield Footer()
@@ -89,7 +90,7 @@ class PanthaTerminal(App):
         self.focus_input()
 
     # --------------------------------------------------
-    # INPUT
+    # INPUT / HOTKEYS
     # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -97,6 +98,18 @@ class PanthaTerminal(App):
         event.input.value = ""
         self.run_command_safe(cmd)
         self.focus_input()
+
+    def on_key(self, event) -> None:
+        log = self.query_one("#log", RichLog)
+
+        if event.key == "ctrl+l":
+            log.clear()
+            self.update_status("Cleared")
+            event.stop()
+            return
+
+        if event.key == "ctrl+c":
+            self.exit()
 
     def focus_input(self) -> None:
         self.query_one("#command_input", Input).focus()
@@ -163,6 +176,11 @@ class PanthaTerminal(App):
             self.exit()
             return
 
+        if low == "clear":
+            log.clear()
+            self.update_status("Cleared")
+            return
+
         log.write(f"[red]Unknown command:[/] {escape(cmd)}")
 
     # --------------------------------------------------
@@ -170,7 +188,6 @@ class PanthaTerminal(App):
     # --------------------------------------------------
 
     def update_status(self, text: str) -> None:
-        self.status_text = text
         self.query_one("#status_line", Static).update(
             f"[#ff4dff]STATUS:[/] {escape(text)}"
         )
@@ -205,8 +222,8 @@ class PanthaTerminal(App):
                 log.write("[gray]No notes found.[/]")
                 return
             log.write("[bold]Notes:[/]")
-            for title in self.notes:
-                log.write(f"• {escape(title)}")
+            for t in self.notes:
+                log.write(f"• {escape(t)}")
             return
 
         if action == "create":
@@ -231,16 +248,6 @@ class PanthaTerminal(App):
             log.write(f"[bold]{escape(title)}[/]\n{content}")
             return
 
-        if action == "delete":
-            title = parts[2]
-            if title not in self.notes:
-                log.write("[red]Note not found.[/]")
-                return
-            del self.notes[title]
-            self.save_notes()
-            log.write(f"[green]Deleted note:[/] {escape(title)}")
-            return
-
         if action == "write":
             if " " not in parts[2]:
                 log.write("[yellow]note write <title> <text>[/]")
@@ -254,10 +261,20 @@ class PanthaTerminal(App):
             log.write(f"[green]Updated note:[/] {escape(title)}")
             return
 
+        if action == "delete":
+            title = parts[2]
+            if title not in self.notes:
+                log.write("[red]Note not found.[/]")
+                return
+            del self.notes[title]
+            self.save_notes()
+            log.write(f"[green]Deleted note:[/] {escape(title)}")
+            return
+
         log.write("[yellow]Unknown note command.[/]")
 
     # --------------------------------------------------
-    # PANTHAM ASCII
+    # PANTHAM ASCII + COMMANDS
     # --------------------------------------------------
 
     def show_pantha_ascii(self) -> None:
@@ -275,7 +292,25 @@ class PanthaTerminal(App):
 
       ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
 """
-        self.query_one("#log", RichLog).write(f"[bold #ff4dff]{ascii_art}[/]")
+
+        commands = """
+[bold #ff4dff]PANTHAM COMMANDS[/]
+[#b066ff]────────────────[/]
+
+[#ffffff]note list[/]
+[#ffffff]note create <title>[/]
+[#ffffff]note view <title>[/]
+[#ffffff]note write <title> <text>[/]
+[#ffffff]note delete <title>[/]
+
+[#888888]CTRL+L → clear[/]
+[#888888]CTRL+C → quit[/]
+[#888888]pantham off[/]
+"""
+
+        log = self.query_one("#log", RichLog)
+        log.write(f"[bold #ff4dff]{ascii_art}[/]")
+        log.write(commands)
 
 
 # --------------------------------------------------
