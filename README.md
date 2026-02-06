@@ -82,4 +82,3 @@ This README is designed to:
 ```
 
 Would You Like To Help Make Pantha Better? Join V1LE-CODE Team :) 
-![Alt text]([path/to/image.png](https://github.com/V1LE-CODE/pantha-terminal/blob/389df21cc5380dfadb61c4d53d62b3bd1c1ec973/assets/icon.ico))
