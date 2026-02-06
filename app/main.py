@@ -9,7 +9,8 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 
-from commands import run_command as external_command  # <- your commands.py
+from commands import run_command as external_command  # your commands.py
+
 
 def resource_path(relative: str) -> str:
     try:
@@ -32,7 +33,7 @@ v1  ( | | )___
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╚══██║██╔══██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
 
@@ -54,37 +55,39 @@ class PanthaTerminal(App):
         self.history_index = -1
         self.pantha_mode = False
 
-        # Note system
+        # ---------------- Note system ----------------
         self.notes_dir = Path("notes")
-        self.notes_dir.mkdir(exist_ok=True)
+        try:
+            self.notes_dir.mkdir(exist_ok=True)
+        except Exception:
+            pass
         self.adding_note: bool = False
         self.current_note_name: str = ""
         self.note_buffer: list[str] = []
 
+        # ---------------- User/host ----------------
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
         self.hostname = (
             os.environ.get("COMPUTERNAME")
             or (os.uname().nodename if hasattr(os, "uname") else "local")
         )
 
-    # --------------------------------------------------
-    # STYLES
-    # --------------------------------------------------
-
+    # ---------------- Styles ----------------
     def load_tcss(self) -> None:
-        dev = Path(__file__).parent / "styles.tcss"
-        if dev.exists():
-            self.stylesheet.read(dev)
-            return
+        try:
+            dev = Path(__file__).parent / "styles.tcss"
+            if dev.exists() and hasattr(self, "stylesheet") and self.stylesheet:
+                self.stylesheet.read(dev)
+                return
 
-        packed = Path(resource_path("app/styles.tcss"))
-        if packed.exists():
-            self.stylesheet.read(packed)
+            packed = Path(resource_path("app/styles.tcss"))
+            if packed.exists() and hasattr(self, "stylesheet") and self.stylesheet:
+                self.stylesheet.read(packed)
+        except Exception:
+            # fail silently so app doesn't crash
+            pass
 
-    # --------------------------------------------------
-    # UI
-    # --------------------------------------------------
-
+    # ---------------- UI ----------------
     def compose(self) -> ComposeResult:
         with Vertical(id="frame"):
             yield Header(show_clock=True)
@@ -132,10 +135,7 @@ class PanthaTerminal(App):
 
             yield Footer()
 
-    # --------------------------------------------------
-    # LIFECYCLE
-    # --------------------------------------------------
-
+    # ---------------- Lifecycle ----------------
     def on_mount(self) -> None:
         self.load_tcss()
 
@@ -146,10 +146,7 @@ class PanthaTerminal(App):
 
         self.query_one("#command_input", Input).focus()
 
-    # --------------------------------------------------
-    # INPUT HANDLING
-    # --------------------------------------------------
-
+    # ---------------- Input handling ----------------
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
         event.input.value = ""
@@ -194,10 +191,7 @@ class PanthaTerminal(App):
             event.stop()
             return
 
-    # --------------------------------------------------
-    # COMMANDS
-    # --------------------------------------------------
-
+    # ---------------- Commands ----------------
     def update_status(self, text: str) -> None:
         self.status_text = text
         self.query_one("#status_line", Static).update(
@@ -293,11 +287,7 @@ class PanthaTerminal(App):
         else:
             log.write(output)
 
-
-    # --------------------------------------------------
-    # PANTHAM MODE ASCII
-    # --------------------------------------------------
-
+    # ---------------- Pantham ASCII ----------------
     def show_pantha_ascii(self) -> None:
         ascii_art = r"""
 ⠀⠀⠀⠀⠀⠀⠀/\_/\ 
@@ -307,14 +297,13 @@ class PanthaTerminal(App):
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║
 ██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╚══██║██╔══██║██║╚██╔╝██║
 ██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
 
       ░▒▓█▓▒░  P A N T H A M   A W A K E N E D  ░▒▓█▓▒░
       ░▒▓█▓▒░  SYSTEM • TERMINAL • CONTROL      ░▒▓█▓▒░
 """
-
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]" + ascii_art + "[/]")
 
