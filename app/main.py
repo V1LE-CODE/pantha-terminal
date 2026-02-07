@@ -398,7 +398,7 @@ class PanthaTerminal(App):
 """
 
         commands = """                                                        
-                                                [#b066ff](`\[/] 
+                                                [#b066ff](`\
                                                  [#b066ff]) )[/]
 [#ff4dff]██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗[/]
 [#ff4dff]██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║[/]
@@ -421,7 +421,7 @@ class PanthaTerminal(App):
 [#b066ff]note export[/] [#888888]<title>[/]
 [#b066ff]note import[/] [#888888]<file_path>[/]
 
-[#888888]CTRL+L → clear
+[#ffffff]CTRL+L → clear
 CTRL+C → quit
 pantham off[/]
 """
