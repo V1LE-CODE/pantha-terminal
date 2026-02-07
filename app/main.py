@@ -300,68 +300,57 @@ def handle_note_command(self, cmd: str) -> None:
 
         return
 
-    # ----------------- CREATE -----------------
-    if action == "create":
-        if len(parts) < 3:
-            log.write("[yellow]note create <title>[/]")
+     # ----------------- CREATE -----------------
+        if action == "create":
+            if len(parts) < 3:
+                log.write("[yellow]note create <title>[/]")
+                return
+            title = parts[2]
+            if title in self.notes:
+                log.write("[red]Note already exists.[/]")
+                return
+            self.notes[title] = ""
+            self.save_notes()
+            log.write(f"[green]Created note:[/] {escape(title)}")
             return
-
-        title = parts[2]
-        if title in self.notes:
-            log.write("[red]Note already exists.[/]")
-            return
-
-        self.notes[title] = {"content": "", "pinned": False}
-        self.save_notes()
-        log.write(f"[green]Created note:[/] {escape(title)}")
-        return
 
     # ----------------- VIEW -----------------
-    if action == "view":
-        title = parts[2]
-        if title not in self.notes:
-            log.write("[red]Note not found.[/]")
+        if action == "view":
+            title = parts[2]
+            if title not in self.notes:
+                log.write("[red]Note not found.[/]")
+                return
+            content = escape(self.notes[title]) or "[gray]<empty>[/]"
+            log.write(f"[bold]{escape(title)}[/]\n{content}")
             return
-
-        self.normalize_note(title)
-        content = escape(self.notes[title]["content"]) or "[gray]<empty>[/]"
-        pin = " 📌" if self.notes[title]["pinned"] else ""
-        log.write(f"[bold]{escape(title)}{pin}[/]\n{content}")
-        return
 
     # ----------------- WRITE -----------------
-    if action == "write":
-        if len(parts) < 4:
-            log.write("[yellow]note write <title> <text>[/]")
+        if action == "write":
+            if len(parts) < 4:
+                log.write("[yellow]note write <title> <text>[/]")
+                return
+            title, text = parts[2], " ".join(parts[3:])
+            if title not in self.notes:
+                log.write("[red]Note not found.[/]")
+                return
+            self.notes[title] = text
+            self.save_notes()
+            log.write(f"[green]Updated note:[/] {escape(title)}")
             return
 
-        title, text = parts[2], " ".join(parts[3:])
-        if title not in self.notes:
-            log.write("[red]Note not found.[/]")
+     # ----------------- APPEND -----------------
+        if action == "append":
+            if len(parts) < 4:
+                log.write("[yellow]note append <title> <text>[/]")
+                return
+            title, text = parts[2], " ".join(parts[3:])
+            if title not in self.notes:
+                log.write("[red]Note not found.[/]")
+                return
+            self.notes[title] += "\n" + text
+            self.save_notes()
+            log.write(f"[green]Appended to note:[/] {escape(title)}")
             return
-
-        self.normalize_note(title)
-        self.notes[title]["content"] = text
-        self.save_notes()
-        log.write(f"[green]Updated note:[/] {escape(title)}")
-        return
-
-    # ----------------- APPEND -----------------
-    if action == "append":
-        if len(parts) < 4:
-            log.write("[yellow]note append <title> <text>[/]")
-            return
-
-        title, text = parts[2], " ".join(parts[3:])
-        if title not in self.notes:
-            log.write("[red]Note not found.[/]")
-            return
-
-        self.normalize_note(title)
-        self.notes[title]["content"] += "\n" + text
-        self.save_notes()
-        log.write(f"[green]Appended to note:[/] {escape(title)}")
-        return
 
     # ----------------- PIN -----------------
     if action == "pin":
@@ -389,19 +378,16 @@ def handle_note_command(self, cmd: str) -> None:
         log.write(f"[green]Unpinned note:[/] {escape(title)}")
         return
 
-    # ----------------- DELETE -----------------
-    if action == "delete":
-        title = parts[2]
-        if title not in self.notes:
-            log.write("[red]Note not found.[/]")
+# ----------------- DELETE -----------------
+        if action == "delete":
+            title = parts[2]
+            if title not in self.notes:
+                log.write("[red]Note not found.[/]")
+                return
+            del self.notes[title]
+            self.save_notes()
+            log.write(f"[green]Deleted note:[/] {escape(title)}")
             return
-
-        del self.notes[title]
-        self.save_notes()
-        log.write(f"[green]Deleted note:[/] {escape(title)}")
-        return
-
-    log.write("[yellow]Unknown note command.[/]")
 
         # ----------------- RENAME -----------------
         if action == "rename":
