@@ -293,20 +293,6 @@ class PanthaTerminal(App):
             log.write(f"[bold]{escape(title)}[/]\n{content}")
             return
 
-        # ----------------- WRITE -----------------
-        if action == "write":
-            if len(parts) < 4:
-                log.write("[yellow]note write <title> <text>[/]")
-                return
-            title, text = parts[2], " ".join(parts[3:])
-            if title not in self.notes:
-                log.write("[red]Note not found.[/]")
-                return
-            self.notes[title] = text
-            self.save_notes()
-            log.write(f"[green]Updated note:[/] {escape(title)}")
-            return
-
         # ----------------- APPEND -----------------
         if action == "append":
             if len(parts) < 4:
@@ -364,31 +350,6 @@ class PanthaTerminal(App):
                 log.write(f"• {escape(t)}")
             return
 
-       # --------------------------------------------------
-    # HELP
-    # --------------------------------------------------
-
-    def show_help(self) -> None:
-        self.query_one("#log", RichLog).write(
-            """
-[bold #ff4dff]GLOBAL COMMANDS[/]
-pantham / pantham off
-help
-exit
-
-[bold #ff4dff]NOTE COMMANDS[/]
-note list
-note create <title>
-note view <title>
-note append <title> <text>
-note delete <title>
-note rename <old> <new>
-note search <keyword>
-
-[gray]CTRL+L clear • CTRL+C quit[/]
-"""
-        )
-
         # ----------------- EXPORT -----------------
         if action == "export":
             if len(parts) < 3:
@@ -445,15 +406,15 @@ note search <keyword>
 [bold #ff4dff]PANTHAM COMMANDS[/]
 [#b066ff]────────────────[/]
 
-[#ffffff]note list
-note create <title>
-note view <title>
-note append <title> <text>
-note delete <title>
-note rename <old> <new>
-note search <keyword>
-note export <title>
-note import <file_path>[/]
+[#b066ff]note list[/]
+[#b066ff]note create[/] [#888888]<title>[/]
+[#b066ff]note view[/] [#888888]<title>[/]
+[#b066ff]note append[/] [#888888]<title> <text>[/]
+[#b066ff]note delete[/] [#888888]<title>[/]
+[#b066ff]note rename[/] [#888888]<old> <new>[/]
+[#b066ff]note search[/] [#888888]<keyword>[/]
+[#b066ff]note export[/] [#888888]<title>[/]
+[#b066ff]note import[/] [#888888]<file_path>[/]
 
 [#888888]CTRL+L → clear
 CTRL+C → quit
