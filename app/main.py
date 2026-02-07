@@ -231,76 +231,46 @@ class PanthaTerminal(App):
             f"[#ff4dff]STATUS:[/] {escape(text)}"
         )
 
-# --------------------------------------------------
-# NOTES
-# --------------------------------------------------
+    # --------------------------------------------------
+    # NOTES
+    # --------------------------------------------------
 
-def require_pantha(self) -> bool:
-    if not self.pantha_mode:
-        self.query_one("#log", RichLog).write(
-            "[red]Notes locked. Enter [bold]pantham[/] first.[/]"
-        )
-        return False
-    return True
+    def require_pantha(self) -> bool:
+        if not self.pantha_mode:
+            self.query_one("#log", RichLog).write(
+                "[red]Notes locked. Enter [bold]pantham[/] first.[/]"
+            )
+            return False
+        return True
 
-
-def normalize_note(self, title: str) -> None:
-    """Upgrade old string notes to dict format"""
-    if isinstance(self.notes.get(title), str):
-        self.notes[title] = {
-            "content": self.notes[title],
-            "pinned": False,
-        }
-
-
-def handle_note_command(self, cmd: str) -> None:
-    if not self.require_pantha():
-        return
-
-    log = self.query_one("#log", RichLog)
-
-    try:
-        parts = shlex_split(cmd)
-    except Exception:
-        log.write("[red]Failed to parse command.[/]")
-        return
-
-    if len(parts) < 2:
-        log.write(
-            "[yellow]Usage: note list|create|view|write|append|delete|rename|pin|unpin|search|export|import[/]"
-        )
-        return
-
-    action = parts[1].lower()
-
-    # ----------------- LIST -----------------
-    if action == "list":
-        if not self.notes:
-            log.write("[gray]No notes found.[/]")
+    def handle_note_command(self, cmd: str) -> None:
+        if not self.require_pantha():
             return
 
-        pinned = []
-        normal = []
+        log = self.query_one("#log", RichLog)
+        try:
+            parts = shlex_split(cmd)  # Handles quotes for multi-word titles
+        except Exception:
+            log.write("[red]Failed to parse command.[/]")
+            return
 
-        for title in self.notes:
-            self.normalize_note(title)
-            if self.notes[title].get("pinned"):
-                pinned.append(title)
-            else:
-                normal.append(title)
+        if len(parts) < 2:
+            log.write("[yellow]Usage: note list|create|view|write|append|delete|rename|search|export|import[/]")
+            return
 
-        if pinned:
-            log.write("[bold]📌 Pinned Notes:[/]")
-            for t in pinned:
+        action = parts[1].lower()
+
+        # ----------------- LIST -----------------
+        if action == "list":
+            if not self.notes:
+                log.write("[gray]No notes found.[/]")
+                return
+            log.write("[bold]Notes:[/]")
+            for t in self.notes:
                 log.write(f"• {escape(t)}")
+            return
 
-        log.write("[bold]Notes:[/]")
-        for t in normal:
-            log.write(f"• {escape(t)}")
-
-        return
-
-     # ----------------- CREATE -----------------
+        # ----------------- CREATE -----------------
         if action == "create":
             if len(parts) < 3:
                 log.write("[yellow]note create <title>[/]")
@@ -314,7 +284,7 @@ def handle_note_command(self, cmd: str) -> None:
             log.write(f"[green]Created note:[/] {escape(title)}")
             return
 
-    # ----------------- VIEW -----------------
+        # ----------------- VIEW -----------------
         if action == "view":
             title = parts[2]
             if title not in self.notes:
@@ -324,7 +294,7 @@ def handle_note_command(self, cmd: str) -> None:
             log.write(f"[bold]{escape(title)}[/]\n{content}")
             return
 
-    # ----------------- WRITE -----------------
+        # ----------------- WRITE -----------------
         if action == "write":
             if len(parts) < 4:
                 log.write("[yellow]note write <title> <text>[/]")
@@ -338,7 +308,7 @@ def handle_note_command(self, cmd: str) -> None:
             log.write(f"[green]Updated note:[/] {escape(title)}")
             return
 
-     # ----------------- APPEND -----------------
+        # ----------------- APPEND -----------------
         if action == "append":
             if len(parts) < 4:
                 log.write("[yellow]note append <title> <text>[/]")
@@ -352,33 +322,7 @@ def handle_note_command(self, cmd: str) -> None:
             log.write(f"[green]Appended to note:[/] {escape(title)}")
             return
 
-    # ----------------- PIN -----------------
-    if action == "pin":
-        title = parts[2]
-        if title not in self.notes:
-            log.write("[red]Note not found.[/]")
-            return
-
-        self.normalize_note(title)
-        self.notes[title]["pinned"] = True
-        self.save_notes()
-        log.write(f"[green]Pinned note:[/] {escape(title)}")
-        return
-
-    # ----------------- UNPIN -----------------
-    if action == "unpin":
-        title = parts[2]
-        if title not in self.notes:
-            log.write("[red]Note not found.[/]")
-            return
-
-        self.normalize_note(title)
-        self.notes[title]["pinned"] = False
-        self.save_notes()
-        log.write(f"[green]Unpinned note:[/] {escape(title)}")
-        return
-
-# ----------------- DELETE -----------------
+        # ----------------- DELETE -----------------
         if action == "delete":
             title = parts[2]
             if title not in self.notes:
@@ -405,34 +349,6 @@ def handle_note_command(self, cmd: str) -> None:
             self.save_notes()
             log.write(f"[green]Renamed note:[/] {escape(old)} → {escape(new)}")
             return
-
-    # --------------------------------------------------
-    # HELP
-    # --------------------------------------------------
-
-    def show_help(self) -> None:
-        self.query_one("#log", RichLog).write(
-            """
-[bold #ff4dff]GLOBAL COMMANDS[/]
-pantham / pantham off
-help
-exit
-
-[bold #ff4dff]NOTE COMMANDS[/]
-note list
-note create <title>
-note write <title> <text>
-note view <title>
-note append <title> <text>
-note delete <title>
-note rename <old> <new>
-note search <keyword>
-note pin <title>
-note unpin <title>
-
-[gray]CTRL+L clear • CTRL+C quit[/]
-"""
-        )
 
         # ----------------- SEARCH -----------------
         if action == "search":
@@ -515,8 +431,6 @@ note rename <old> <new>
 note search <keyword>
 note export <title>
 note import <file_path>[/]
-note pin <title>
-note unpin <title>
 
 [#888888]CTRL+L → clear
 CTRL+C → quit
