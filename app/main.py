@@ -365,6 +365,32 @@ class PanthaTerminal(App):
                 log.write(f"• {escape(t)}")
             return
 
+       # --------------------------------------------------
+    # HELP
+    # --------------------------------------------------
+
+    def show_help(self) -> None:
+        self.query_one("#log", RichLog).write(
+            """
+[bold #ff4dff]GLOBAL COMMANDS[/]
+pantham / pantham off
+help
+exit
+
+[bold #ff4dff]NOTE COMMANDS[/]
+note list
+note create <title>
+note view <title>
+note write <title> <text>
+note append <title> <text>
+note delete <title>
+note rename <old> <new>
+note search <keyword>
+
+[gray]CTRL+L clear • CTRL+C quit[/]
+"""
+        )
+
         # ----------------- EXPORT -----------------
         if action == "export":
             if len(parts) < 3:
