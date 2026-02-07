@@ -381,7 +381,6 @@ exit
 note list
 note create <title>
 note view <title>
-note write <title> <text>
 note append <title> <text>
 note delete <title>
 note rename <old> <new>
@@ -450,7 +449,6 @@ note search <keyword>
 [#ffffff]note list
 note create <title>
 note view <title>
-note write <title> <text>
 note append <title> <text>
 note delete <title>
 note rename <old> <new>
