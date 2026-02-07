@@ -97,6 +97,7 @@ class PanthaTerminal(App):
         log = self.query_one("#log", RichLog)
         log.write("[bold #ff4dff]Pantha Terminal online.[/]")
         log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
+        log.write("[#b066ff]Type [bold]help[/] to access command list.[/]")
         self.focus_input()
 
     # --------------------------------------------------
