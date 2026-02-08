@@ -1,4 +1,4 @@
-# Pantha Terminal ● Notes
+# Pantha Terminal
 
 ![Pantha Terminal Banner](assets/banner.bmp)  
 
