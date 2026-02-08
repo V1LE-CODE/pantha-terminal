@@ -60,7 +60,7 @@ class PanthaBanner(Static):
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Pantha Secure Notes v2.0"
+    SUB_TITLE = "Pantha Secure Notes v2.1"
 
     status_text = reactive("LOCKED")
 
@@ -72,6 +72,7 @@ class PanthaTerminal(App):
         self.history_index = -1
 
         self.master_key: bytes | None = None
+        self.crypto: Fernet | None = None
 
         self.username = os.getenv("USER", "pantha")
         self.hostname = os.getenv("COMPUTERNAME", "local")
@@ -175,12 +176,22 @@ class PanthaTerminal(App):
             password = cmd.split(" ", 1)[1]
             salt = b"pantha-master-salt"
             self.master_key = self.derive_key(password, salt)
+            self.crypto = Fernet(self.master_key)
             self.update_status("UNLOCKED")
             log.write("[green]Master key accepted[/]")
             return
 
         if low.startswith("note"):
             self.handle_note_command(cmd)
+            return
+
+        if low in ("exit", "quit"):
+            self.exit()
+            return
+
+        if low == "clear":
+            self.query_one("#log", RichLog).clear()
+            self.update_status("CLEARED")
             return
 
         log.write("[red]Unknown command[/]")
@@ -202,7 +213,7 @@ class PanthaTerminal(App):
 
         action = parts[1].lower()
 
-        # ------------- LIST -------------
+        # LIST
         if action == "list":
             if not self.notes:
                 log.write("[gray]No notes found[/]")
@@ -213,7 +224,7 @@ class PanthaTerminal(App):
                 log.write(f"• {escape(t)} {pin}")
             return
 
-        # ------------- CREATE -------------
+        # CREATE
         if action == "create":
             if len(parts) < 3:
                 log.write("[yellow]note create <title>[/]")
@@ -229,7 +240,7 @@ class PanthaTerminal(App):
             log.write(f"[yellow]NOTE KEY (save this!):[/] {key}")
             return
 
-        # ------------- VIEW -------------
+        # VIEW
         if action == "view":
             if len(parts) < 3:
                 log.write("[yellow]note view <title>[/]")
@@ -250,7 +261,7 @@ class PanthaTerminal(App):
             log.write(f"[bold]{escape(title)}[/]\n{escape(decrypted)}")
             return
 
-        # ------------- APPEND -------------
+        # APPEND
         if action == "append":
             if len(parts) < 4:
                 log.write("[yellow]note append <title> <text>[/]")
@@ -262,7 +273,7 @@ class PanthaTerminal(App):
                 return
             f = Fernet(note["key"].encode())
             current = ""
-            if note["data"]:
+            if note.get("data"):
                 try:
                     current = f.decrypt(note["data"].encode()).decode()
                 except InvalidToken:
@@ -272,7 +283,7 @@ class PanthaTerminal(App):
             log.write("[green]Note updated[/]")
             return
 
-        # ------------- PIN -------------
+        # PIN
         if action == "pin":
             if len(parts) < 3:
                 log.write("[yellow]note pin <title>[/]")
@@ -344,7 +355,6 @@ class PanthaTerminal(App):
 """
         log.write(f"[bold #ff4dff]{ascii_art}[/]")
         log.write(commands)
-
 
 # --------------------------------------------------
 # ENTRY
