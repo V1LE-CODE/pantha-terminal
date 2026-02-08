@@ -3,50 +3,36 @@ from __future__ import annotations
 import os
 import json
 import base64
-import secrets
+import traceback
 from pathlib import Path
 from shlex import split as shlex_split
-from getpass import getpass
+from typing import Dict
 
+from textual.app import App, ComposeResult
+from textual.containers import ScrollableContainer
+from textual.widgets import Header, Footer, Input, Static, RichLog
+from textual.reactive import reactive
+from rich.markup import escape
+
+# ---------------- CRYPTO ----------------
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.fernet import Fernet, InvalidToken
 
-from textual.app import App, ComposeResult
-from textual.containers import Vertical
-from textual.widgets import Header, Footer, Input, Static, RichLog
-from textual.screen import ModalScreen
-
 # --------------------------------------------------
-# PATHS
+# USER DATA
 # --------------------------------------------------
 
-APP_DIR = Path.home() / ".pantha"
-APP_DIR.mkdir(exist_ok=True)
-NOTES_FILE = APP_DIR / "notes.json"
-META_FILE = APP_DIR / "meta.json"
+def user_data_dir() -> Path:
+    path = Path.home() / ".pantha"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+NOTES_FILE = user_data_dir() / "notes.json"
+HISTORY_FILE = user_data_dir() / "history.json"
 
 # --------------------------------------------------
-# CRYPTO
-# --------------------------------------------------
-
-def derive_key(password: str, salt: bytes) -> bytes:
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=390_000,
-    )
-    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
-
-def encrypt(data: str, key: bytes) -> str:
-    return Fernet(key).encrypt(data.encode()).decode()
-
-def decrypt(token: str, key: bytes) -> str:
-    return Fernet(key).decrypt(token.encode()).decode()
-
-# --------------------------------------------------
-# ASCII BANNER
+# BANNER
 # --------------------------------------------------
 
 class PanthaBanner(Static):
@@ -55,7 +41,7 @@ class PanthaBanner(Static):
             r"""
                    \    /\
                     )  ( ')
-                    (  /  )                   (`\
+                    (  /  )                   (`
                      \(__)|                    ) )
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
@@ -69,77 +55,52 @@ class PanthaBanner(Static):
         )
 
 # --------------------------------------------------
-# MASTER PASSWORD PROMPT
-# --------------------------------------------------
-
-class MasterUnlock(ModalScreen[str]):
-    def compose(self) -> ComposeResult:
-        yield Static("Enter master password:", classes="title")
-        self.input = Input(password=True)
-        yield self.input
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        self.dismiss(event.value)
-
-# --------------------------------------------------
 # APP
 # --------------------------------------------------
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Pantham v2.0"
+    SUB_TITLE = "Pantha Secure Notes v2.0"
 
-    BINDINGS = [
-        ("ctrl+l", "clear", "Clear"),
-        ("ctrl+c", "quit", "Quit"),
-    ]
+    status_text = reactive("LOCKED")
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.pantha_mode = False
+        self.notes: Dict[str, dict] = {}
+        self.command_history = []
+        self.history_index = -1
+
         self.master_key: bytes | None = None
-        self.notes = self.load_notes()
-        self.meta = self.load_meta()
+        self.crypto: Fernet | None = None
 
-    # --------------------------------------------------
-    # STORAGE
-    # --------------------------------------------------
+        self.username = os.getenv("USER", "pantha")
+        self.hostname = os.getenv("COMPUTERNAME", "local")
 
-    def load_meta(self) -> dict:
-        if META_FILE.exists():
-            return json.loads(META_FILE.read_text())
-        salt = base64.b64encode(secrets.token_bytes(16)).decode()
-        meta = {"salt": salt}
-        META_FILE.write_text(json.dumps(meta))
-        return meta
-
-    def load_notes(self) -> dict:
-        if NOTES_FILE.exists():
-            return json.loads(NOTES_FILE.read_text())
-        return {}
-
-    def save_notes(self) -> None:
-        NOTES_FILE.write_text(json.dumps(self.notes, indent=2))
+        self.load_notes()
+        self.load_history()
 
     # --------------------------------------------------
     # UI
     # --------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        yield Header()
-        with Vertical():
-            yield PanthaBanner()
-            yield RichLog(id="log", wrap=True)
-            yield Input(id="input", placeholder="pantha >")
+        yield Header(show_clock=True)
+        yield PanthaBanner()
+        with ScrollableContainer():
+            yield RichLog(id="log", markup=True, wrap=True)
+        yield Static("", id="status_line")
+        yield Input(id="command_input", placeholder="Type a command…")
         yield Footer()
 
     def on_mount(self) -> None:
         log = self.query_one("#log", RichLog)
-        log.write("[bold magenta]Pantha online.[/]")
-        log.write("Type [bold]pantham[/] to authenticate.")
+        log.write("[bold #ff4dff]Pantha Terminal Online[/]")
+        log.write("[#b066ff]Type [bold]pantham[/] to unlock notes[/]")
+        self.focus_input()
 
-    def action_clear(self) -> None:
-        self.query_one("#log", RichLog).clear()
+    def focus_input(self) -> None:
+        self.query_one("#command_input", Input).focus()
 
     # --------------------------------------------------
     # INPUT
@@ -147,165 +108,158 @@ class PanthaTerminal(App):
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
-        event.input.clear()
-        self.run_command(cmd)
+        event.input.value = ""
+        self.run_command_safe(cmd)
 
     # --------------------------------------------------
-    # COMMAND ROUTER
+    # STORAGE
     # --------------------------------------------------
+
+    def load_notes(self) -> None:
+        if NOTES_FILE.exists():
+            self.notes = json.loads(NOTES_FILE.read_text("utf-8"))
+        else:
+            self.notes = {}
+            self.save_notes()
+
+    def save_notes(self) -> None:
+        NOTES_FILE.write_text(json.dumps(self.notes, indent=2), "utf-8")
+
+    def load_history(self) -> None:
+        if HISTORY_FILE.exists():
+            self.command_history = json.loads(HISTORY_FILE.read_text("utf-8"))
+
+    def save_history(self) -> None:
+        HISTORY_FILE.write_text(json.dumps(self.command_history), "utf-8")
+
+    # --------------------------------------------------
+    # CRYPTO
+    # --------------------------------------------------
+
+    def derive_key(self, password: str, salt: bytes) -> bytes:
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=390_000,
+        )
+        return base64.urlsafe_b64encode(kdf.derive(password.encode()))
+
+    # --------------------------------------------------
+    # COMMANDS
+    # --------------------------------------------------
+
+    def run_command_safe(self, cmd: str) -> None:
+        log = self.query_one("#log", RichLog)
+        log.write(f"[#b066ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
+        try:
+            self.command_history.append(cmd)
+            self.save_history()
+            self.run_command(cmd)
+        except Exception:
+            log.write("[red]CRITICAL ERROR[/]")
+            log.write(escape(traceback.format_exc()))
 
     def run_command(self, cmd: str) -> None:
+        low = cmd.lower()
         log = self.query_one("#log", RichLog)
-        log.write(f"[cyan]› {cmd}[/]")
 
-        if cmd == "pantham":
-            self.authenticate()
+        # -------- PANTHAM --------
+        if low == "pantham":
+            self.show_pantha_ascii()
+            self.pantha_mode = True
+            self.update_status("PANTHAM MODE")
             return
 
-        if cmd == "pantham off":
-            self.master_key = None
-            self.pantha_mode = False
-            log.write("[yellow]Pantham locked.[/]")
+        if low.startswith("unlock "):
+            password = cmd.split(" ", 1)[1]
+            salt = b"pantha-master-salt"
+            self.master_key = self.derive_key(password, salt)
+            self.crypto = Fernet(self.master_key)
+            self.update_status("UNLOCKED")
+            log.write("[green]Master key accepted[/]")
             return
 
-        if cmd.startswith("note"):
-            self.handle_note(cmd)
+        if low.startswith("note"):
+            self.handle_note_command(cmd)
             return
 
         log.write("[red]Unknown command[/]")
 
     # --------------------------------------------------
-    # AUTH
-    # --------------------------------------------------
-
-    def authenticate(self) -> None:
-        def done(password: str) -> None:
-            salt = base64.b64decode(self.meta["salt"])
-            self.master_key = derive_key(password, salt)
-            self.pantha_mode = True
-            self.show_pantha_ascii()
-
-        self.push_screen(MasterUnlock(), done)
-
-    # --------------------------------------------------
     # NOTES
     # --------------------------------------------------
 
-    def require_pantha(self) -> bool:
-        if not self.pantha_mode or not self.master_key:
-            self.query_one("#log", RichLog).write("[red]Locked.[/]")
-            return False
-        return True
-
-    def handle_note(self, cmd: str) -> None:
-        if not self.require_pantha():
-            return
-
+    def handle_note_command(self, cmd: str) -> None:
         log = self.query_one("#log", RichLog)
         parts = shlex_split(cmd)
+        if len(parts) < 2:
+            return
+
         action = parts[1]
 
-        # CREATE
         if action == "create":
             title = parts[2]
-            note_key = secrets.token_urlsafe(12)
-            salt = secrets.token_bytes(16)
-
-            inner_key = derive_key(note_key, salt)
-            encrypted_inner = encrypt("", inner_key)
-            outer = encrypt(encrypted_inner, self.master_key)
-
+            key = Fernet.generate_key().decode()
             self.notes[title] = {
-                "data": outer,
-                "salt": base64.b64encode(salt).decode(),
                 "pinned": False,
+                "key": key,
+                "data": ""
             }
             self.save_notes()
-
-            log.write(f"[green]Created note: {title}[/]")
-            log.write(f"[bold red]NOTE KEY (SAVE THIS): {note_key}[/]")
+            log.write(f"[green]Note created[/]: {escape(title)}")
+            log.write(f"[yellow]NOTE KEY:[/] {key}")
             return
 
-        # LIST
-        if action == "list":
-            for t, n in self.notes.items():
-                icon = "📌" if n["pinned"] else "•"
-                log.write(f"{icon} {t}")
-            return
-
-        # VIEW
         if action == "view":
-            title, note_key = parts[2], parts[3]
-            note = self.notes[title]
-
-            try:
-                salt = base64.b64decode(note["salt"])
-                inner = decrypt(note["data"], self.master_key)
-                inner_key = derive_key(note_key, salt)
-                text = decrypt(inner, inner_key)
-                log.write(text or "[dim]<empty>[/]")
-            except InvalidToken:
-                log.write("[red]Invalid key[/]")
+            title = parts[2]
+            note = self.notes.get(title)
+            if not note:
+                log.write("[red]Not found[/]")
+                return
+            if note["data"]:
+                try:
+                    decrypted = Fernet(note["key"].encode()).decrypt(note["data"].encode()).decode()
+                except InvalidToken:
+                    decrypted = "[red]<INVALID KEY>[/]"
+            else:
+                decrypted = "<empty>"
+            log.write(f"[bold]{escape(title)}[/]\n{escape(decrypted)}")
             return
 
-        # APPEND
         if action == "append":
-            title, note_key = parts[2], parts[3]
-            text = " ".join(parts[4:])
+            title, text = parts[2], " ".join(parts[3:])
             note = self.notes[title]
-
-            try:
-                salt = base64.b64decode(note["salt"])
-                inner = decrypt(note["data"], self.master_key)
-                inner_key = derive_key(note_key, salt)
-                current = decrypt(inner, inner_key)
-                new_inner = encrypt(current + "\n" + text, inner_key)
-                note["data"] = encrypt(new_inner, self.master_key)
-                self.save_notes()
-                log.write("[green]Updated.[/]")
-            except InvalidToken:
-                log.write("[red]Invalid key[/]")
+            f = Fernet(note["key"].encode())
+            current = ""
+            if note["data"]:
+                current = f.decrypt(note["data"].encode()).decode()
+            note["data"] = f.encrypt((current + "\n" + text).encode()).decode()
+            self.save_notes()
+            log.write("[green]Updated[/]")
             return
 
-        # PIN / UNPIN
-        if action in ("pin", "unpin"):
-            title, note_key = parts[2], parts[3]
-            note = self.notes[title]
-
-            try:
-                salt = base64.b64decode(note["salt"])
-                inner = decrypt(note["data"], self.master_key)
-                decrypt(inner, derive_key(note_key, salt))
-                note["pinned"] = action == "pin"
-                self.save_notes()
-                log.write("[green]Pin updated.[/]")
-            except InvalidToken:
-                log.write("[red]Invalid key[/]")
+        if action == "pin":
+            self.notes[parts[2]]["pinned"] = True
+            self.save_notes()
+            log.write("[yellow]Pinned[/]")
             return
-
-        # DELETE
-        if action == "delete":
-            title, note_key = parts[2], parts[3]
-            note = self.notes[title]
-
-            try:
-                salt = base64.b64decode(note["salt"])
-                inner = decrypt(note["data"], self.master_key)
-                decrypt(inner, derive_key(note_key, salt))
-                del self.notes[title]
-                self.save_notes()
-                log.write("[red]Deleted.[/]")
-            except InvalidToken:
-                log.write("[red]Invalid key[/]")
 
     # --------------------------------------------------
-    # ASCII PANTHAM
+    # UI
+    # --------------------------------------------------
+
+    def update_status(self, text: str) -> None:
+        self.query_one("#status_line", Static).update(f"[#ff4dff]STATUS[/]: {text}")
+
+    # --------------------------------------------------
+    # ASCII
     # --------------------------------------------------
 
     def show_pantha_ascii(self) -> None:
-        log = self.query_one("#log", RichLog)
-        log.write(
-            r"""
+    log = self.query_one("#log", RichLog)
+
+    ascii_art = r"""
 (\ 
 \'\ 
  \'\     __________  
@@ -314,24 +268,44 @@ class PanthaTerminal(App):
    \       \ ~~~~~~   \
    ==).      \__________\
   (__)       ()__________)
-
-░▒▓█▓▒░  P A N T H A M   N O T E S   G R A N T E D  ░▒▓█▓▒░
-
-Commands:
- note list
- note create <title>
- note view <title> <key>
- note append <title> <key> <text>
- note pin <title> <key>
- note unpin <title> <key>
- note delete <title> <key>
-
- CTRL+L clear | CTRL+C quit | pantham off
 """
-        )
+
+    commands = """
+[#ff4dff]██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗[/]
+[#ff4dff]██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗[/]
+[#ff4dff]██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║[/]
+[#ff4dff]██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║[/]
+[#ff4dff]██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║[/]
+[#ff4dff]╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝[/]
+
+[#ff4dff]░▒▓█▓▒░[/] [bold #b066ff]PANTHAM MODE ENABLED[/] [#ff4dff]░▒▓█▓▒░[/]
+
+[bold #ff4dff]UNLOCK[/]
+[#b066ff]unlock <master_password>[/]
+
+[bold #ff4dff]NOTES[/]
+[#b066ff]note list[/]
+[#b066ff]note create <title>[/]
+[#b066ff]note view <title>[/]
+[#b066ff]note append <title> <text>[/]
+[#b066ff]note pin <title>[/]
+
+[bold #ff4dff]SECURITY[/]
+[#888888]• Notes are encrypted at rest[/]
+[#888888]• Each note has its own key[/]
+[#888888]• Note keys are shown once on creation[/]
+
+[bold #ff4dff]SYSTEM[/]
+[#888888]CTRL+L → clear[/]
+[#888888]CTRL+C → quit[/]
+[#888888]pantham off[/]
+"""
+
+    log.write(f"[bold #ff4dff]{ascii_art}[/]")
+    log.write(commands)
 
 # --------------------------------------------------
-# RUN
+# ENTRY
 # --------------------------------------------------
 
 if __name__ == "__main__":
