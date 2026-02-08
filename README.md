@@ -32,7 +32,7 @@
 
 ## 🚀 Installation
 
-### How To Set-Up
+### 🛬 How To Set-Up
 
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cb1255aba7d559f78fefa528da4edca19c7eb8b7/assets/SetupPath.png)
 
@@ -44,7 +44,7 @@ After Setup Is Complete Run Pantha Terminal
 
 - Python 3.11+
 
-### PANTHAM Note Commands!!
+### 👨‍💻 PANTHAM Note Commands!!
 
 ```bash
 PANTHAM COMMANDS
