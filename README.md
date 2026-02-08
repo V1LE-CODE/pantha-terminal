@@ -34,6 +34,8 @@
 
 ### Prerequisites
 
+![Alt text]([images/your-image.png](https://github.com/V1LE-CODE/pantha-terminal/blob/c406c9fca1337b8e3d7374053b66abe4f07b5050/assets/PanthaSeutp.png)
+
 - Python 3.11+
 - Pip
 
