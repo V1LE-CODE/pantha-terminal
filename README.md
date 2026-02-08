@@ -60,7 +60,7 @@ MIT LICENSE UNDER V1LE-CODE ALL RIGHTS RESERVED
 
 Would You Like To Help Make Pantha Better? Join  The V1LE-CODE Team :) Our Goal Is To Make The Best & Go-To Note Storer For Large commercial storing At The Price Of $0 Thats Right Free, Used By Companys & Home Computers
 ```bash
-Developers Include
-v1ledev - V1LE
-missusv1le - Yarndi
+Developers Working / Worked On Project:
+Active: v1ledev - V1LE
+Active: missusv1le - Yarndi
 ```
