@@ -54,7 +54,6 @@ CTRL+C → quit
 pantham off
 ```
 
-**8 AUTHOR
 ```bash
 MIT LICENSE UNDER V1LE-CODE ALL RIGHTS RESERVED  
 ```
