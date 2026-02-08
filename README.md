@@ -15,6 +15,8 @@
 
 ## 🎯 Features
 
+![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/7b6a8339763716df09a43b63aa30bec6b961e00a/assets/PanthaApp.png)
+
 - **Pantham Mode** – unlock the full power of note commands.
 - **Terminal-style UI** with live command input and interactive log.
 - **Persistent JSON notes** saved securely in `~/.pantha/notes.json`.
