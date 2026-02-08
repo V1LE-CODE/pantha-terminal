@@ -37,28 +37,8 @@
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/c406c9fca1337b8e3d7374053b66abe4f07b5050/assets/PanthaSeutp.png)
 
 - Python 3.11+
-- Pip
 
 ### PANTHAM Note Commands!!
-
-```bash
-note create ideas
-note write ideas "Build Pantha AI core"
-note view ideas
-note list
-note delete ideas
-```
-
-*** FEATURES
-
-```bash
-help         # Show Pantham commands
-clear        # Clear the log
-exit / quit  # Exit Pantha Terminal
-pantham off  # Deactivate Pantham Mode
-```
-
-*** PANTHAM Commands 
 
 ```bash
 PANTHAM COMMANDS
@@ -74,15 +54,9 @@ CTRL+C → quit
 pantham off
 ```
 
-**8 README
+**8 AUTHOR
 ```bash
-This README is designed to:
-
-- Be **professional and colorful**  
-- Highlight **features clearly**  
-- Include **badges for Python version, license, platform**  
-- Show **quick start and Pantham Mode magic**  
-- Make GitHub visitors **understand and feel excited instantly**  
+MIT LICENSE UNDER V1LE-CODE ALL RIGHTS RESERVED  
 ```
 
 Would You Like To Help Make Pantha Better? Join  The V1LE-CODE Team :) Our Goal Is To Make The Best & Go-To Note Storer For Large commercial storing At The Price Of $0 Thats Right Free, Used By Companys & Home Computers
