@@ -41,7 +41,7 @@ class PanthaBanner(Static):
             r"""
                    \    /\
                     )  ( ')
-                    (  /  )                   (`
+                    (  /  )                   (`)
                      \(__)|                    ) )
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
 ██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
@@ -154,6 +154,7 @@ class PanthaTerminal(App):
         log.write(f"[#b066ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
         try:
             self.command_history.append(cmd)
+            self.history_index = len(self.command_history)
             self.save_history()
             self.run_command(cmd)
         except Exception:
@@ -194,32 +195,49 @@ class PanthaTerminal(App):
         log = self.query_one("#log", RichLog)
         parts = shlex_split(cmd)
         if len(parts) < 2:
+            log.write("[yellow]Usage: note create|view|append|pin|list[/]")
             return
 
-        action = parts[1]
+        action = parts[1].lower()
+
+        if action == "list":
+            if not self.notes:
+                log.write("[gray]No notes found[/]")
+                return
+            log.write("[bold]Notes:[/]")
+            for t, note in self.notes.items():
+                pin = "[yellow]📌[/]" if note.get("pinned") else ""
+                log.write(f"• {escape(t)} {pin}")
+            return
 
         if action == "create":
+            if len(parts) < 3:
+                log.write("[yellow]note create <title>[/]")
+                return
             title = parts[2]
+            if title in self.notes:
+                log.write("[red]Note already exists[/]")
+                return
             key = Fernet.generate_key().decode()
-            self.notes[title] = {
-                "pinned": False,
-                "key": key,
-                "data": ""
-            }
+            self.notes[title] = {"pinned": False, "key": key, "data": ""}
             self.save_notes()
             log.write(f"[green]Note created[/]: {escape(title)}")
-            log.write(f"[yellow]NOTE KEY:[/] {key}")
+            log.write(f"[yellow]NOTE KEY (save this!):[/] {key}")
             return
 
         if action == "view":
+            if len(parts) < 3:
+                log.write("[yellow]note view <title>[/]")
+                return
             title = parts[2]
             note = self.notes.get(title)
             if not note:
-                log.write("[red]Not found[/]")
+                log.write("[red]Note not found[/]")
                 return
-            if note["data"]:
+            data = note.get("data", "")
+            if data:
                 try:
-                    decrypted = Fernet(note["key"].encode()).decrypt(note["data"].encode()).decode()
+                    decrypted = Fernet(note["key"].encode()).decrypt(data.encode()).decode()
                 except InvalidToken:
                     decrypted = "[red]<INVALID KEY>[/]"
             else:
@@ -228,22 +246,41 @@ class PanthaTerminal(App):
             return
 
         if action == "append":
+            if len(parts) < 4:
+                log.write("[yellow]note append <title> <text>[/]")
+                return
             title, text = parts[2], " ".join(parts[3:])
-            note = self.notes[title]
+            note = self.notes.get(title)
+            if not note:
+                log.write("[red]Note not found[/]")
+                return
             f = Fernet(note["key"].encode())
             current = ""
             if note["data"]:
-                current = f.decrypt(note["data"].encode()).decode()
+                try:
+                    current = f.decrypt(note["data"].encode()).decode()
+                except InvalidToken:
+                    current = ""
             note["data"] = f.encrypt((current + "\n" + text).encode()).decode()
             self.save_notes()
-            log.write("[green]Updated[/]")
+            log.write("[green]Note updated[/]")
             return
 
         if action == "pin":
-            self.notes[parts[2]]["pinned"] = True
+            if len(parts) < 3:
+                log.write("[yellow]note pin <title>[/]")
+                return
+            title = parts[2]
+            note = self.notes.get(title)
+            if not note:
+                log.write("[red]Note not found[/]")
+                return
+            note["pinned"] = True
             self.save_notes()
             log.write("[yellow]Pinned[/]")
             return
+
+        log.write("[yellow]Unknown note command[/]")
 
     # --------------------------------------------------
     # UI
@@ -257,9 +294,9 @@ class PanthaTerminal(App):
     # --------------------------------------------------
 
     def show_pantha_ascii(self) -> None:
-    log = self.query_one("#log", RichLog)
+        log = self.query_one("#log", RichLog)
 
-    ascii_art = r"""
+        ascii_art = r"""
 (\ 
 \'\ 
  \'\     __________  
@@ -270,7 +307,7 @@ class PanthaTerminal(App):
   (__)       ()__________)
 """
 
-    commands = """
+        commands = """
 [#ff4dff]██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗[/]
 [#ff4dff]██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗[/]
 [#ff4dff]██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║[/]
@@ -301,8 +338,9 @@ class PanthaTerminal(App):
 [#888888]pantham off[/]
 """
 
-    log.write(f"[bold #ff4dff]{ascii_art}[/]")
-    log.write(commands)
+        log.write(f"[bold #ff4dff]{ascii_art}[/]")
+        log.write(commands)
+
 
 # --------------------------------------------------
 # ENTRY
