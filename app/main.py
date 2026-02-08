@@ -72,7 +72,6 @@ class PanthaTerminal(App):
         self.history_index = -1
 
         self.master_key: bytes | None = None
-        self.crypto: Fernet | None = None
 
         self.username = os.getenv("USER", "pantha")
         self.hostname = os.getenv("COMPUTERNAME", "local")
@@ -176,7 +175,6 @@ class PanthaTerminal(App):
             password = cmd.split(" ", 1)[1]
             salt = b"pantha-master-salt"
             self.master_key = self.derive_key(password, salt)
-            self.crypto = Fernet(self.master_key)
             self.update_status("UNLOCKED")
             log.write("[green]Master key accepted[/]")
             return
@@ -193,6 +191,10 @@ class PanthaTerminal(App):
 
     def handle_note_command(self, cmd: str) -> None:
         log = self.query_one("#log", RichLog)
+        if not self.pantha_mode:
+            log.write("[red]Notes locked. Type pantham first[/]")
+            return
+
         parts = shlex_split(cmd)
         if len(parts) < 2:
             log.write("[yellow]Usage: note create|view|append|pin|list[/]")
@@ -200,16 +202,18 @@ class PanthaTerminal(App):
 
         action = parts[1].lower()
 
+        # ------------- LIST -------------
         if action == "list":
             if not self.notes:
                 log.write("[gray]No notes found[/]")
                 return
             log.write("[bold]Notes:[/]")
-            for t, note in self.notes.items():
-                pin = "[yellow]📌[/]" if note.get("pinned") else ""
+            for t, n in self.notes.items():
+                pin = "[yellow]📌[/]" if n.get("pinned") else ""
                 log.write(f"• {escape(t)} {pin}")
             return
 
+        # ------------- CREATE -------------
         if action == "create":
             if len(parts) < 3:
                 log.write("[yellow]note create <title>[/]")
@@ -225,6 +229,7 @@ class PanthaTerminal(App):
             log.write(f"[yellow]NOTE KEY (save this!):[/] {key}")
             return
 
+        # ------------- VIEW -------------
         if action == "view":
             if len(parts) < 3:
                 log.write("[yellow]note view <title>[/]")
@@ -245,6 +250,7 @@ class PanthaTerminal(App):
             log.write(f"[bold]{escape(title)}[/]\n{escape(decrypted)}")
             return
 
+        # ------------- APPEND -------------
         if action == "append":
             if len(parts) < 4:
                 log.write("[yellow]note append <title> <text>[/]")
@@ -266,6 +272,7 @@ class PanthaTerminal(App):
             log.write("[green]Note updated[/]")
             return
 
+        # ------------- PIN -------------
         if action == "pin":
             if len(parts) < 3:
                 log.write("[yellow]note pin <title>[/]")
@@ -295,7 +302,6 @@ class PanthaTerminal(App):
 
     def show_pantha_ascii(self) -> None:
         log = self.query_one("#log", RichLog)
-
         ascii_art = r"""
 (\ 
 \'\ 
@@ -306,7 +312,6 @@ class PanthaTerminal(App):
    ==).      \__________\
   (__)       ()__________)
 """
-
         commands = """
 [#ff4dff]██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗[/]
 [#ff4dff]██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗[/]
@@ -337,7 +342,6 @@ class PanthaTerminal(App):
 [#888888]CTRL+C → quit[/]
 [#888888]pantham off[/]
 """
-
         log.write(f"[bold #ff4dff]{ascii_art}[/]")
         log.write(commands)
 
