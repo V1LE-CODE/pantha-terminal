@@ -59,16 +59,14 @@ CTRL+L → clear
 CTRL+C → quit
 pantham off
 ```
-
-```bash
-MIT LICENSE UNDER V1LE-CODE ALL RIGHTS RESERVED  
-```
-
 Would You Like To Help Make Pantha Better? Join  The V1LE-CODE Team :) Our Goal Is To Make The Best & Go-To Note Storer For Large commercial storing At The Price Of $0 Thats Right Free, Used By Companys & Home Computers
 ```bash
 Developers Working / Worked On Project:
 Active: v1ledev - V1LE
 Active: missusv1le - Yarndi
+```
+```bash
+MIT LICENSE UNDER V1LE-CODE ALL RIGHTS RESERVED  
 ```
 
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/9bb344ec28a3ce71fd6e0c56e7a5d5473ba8c2e9/assets/V1LE-CODE.png)
