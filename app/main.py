@@ -406,7 +406,7 @@ class PanthaTerminal(App):
 [#ff4dff]██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║[/]
 [#ff4dff]██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║[/]
 [#ff4dff]╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝[/]
-[[#ff4dff]░▒▓█▓▒░[/]  [#b066ff]P A N T H A M   N O T E S  G R A N T E D[/]  [[#ff4dff]░▒▓█▓▒░[/]
+[#ff4dff]░▒▓█▓▒░[/]  [#b066ff]P A N T H A M   N O T E S  G R A N T E D[/]  [#ff4dff]░▒▓█▓▒░[/]
 
 [bold #ff4dff]PANTHAM COMMANDS[/]
 [#b066ff]────────────────[/]
@@ -421,7 +421,7 @@ class PanthaTerminal(App):
 [#b066ff]note export[/] [#888888]<title>[/]
 [#b066ff]note import[/] [#888888]<file_path>[/]
 
-[#ffffff]CTRL+L → clear
+[#888888]CTRL+L → clear
 CTRL+C → quit
 pantham off[/]
 """
