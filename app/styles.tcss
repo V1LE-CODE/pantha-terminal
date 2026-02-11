@@ -30,7 +30,7 @@ Screen {
 Header, Footer {
     background: #0f0016;
     color: #ffb3ff;
-    border: heavy #6a00ff;
+    border: heavy #b300ff;
 }
 
 /* BANNER */
