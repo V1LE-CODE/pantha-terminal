@@ -12,7 +12,6 @@ from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
 
-
 # --------------------------------------------------
 # USER DATA (SAFE LOCATION)
 # --------------------------------------------------
@@ -22,9 +21,7 @@ def user_data_dir() -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
 
-
 HISTORY_FILE = user_data_dir() / "history.json"
-
 
 # --------------------------------------------------
 # BANNER
@@ -46,7 +43,6 @@ class PanthaBanner(Static):
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝                                                                                                   
 """
         )
-
 
 # --------------------------------------------------
 # APP
@@ -88,18 +84,18 @@ class PanthaTerminal(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        # Safely load styles.tcss
+        # Correct path to styles.tcss in the same folder as main.py
         css_file = Path(__file__).parent / "styles.tcss"
         log = self.query_one("#log", RichLog)
-        if not css_file.exists():
-            log.write("[yellow]Warning: styles.tcss not found.[/]")
-            return
 
-        try:
-            with css_file.open("r", encoding="utf-8") as f:
-                self.styles.update(f.read())
-        except Exception as e:
-            log.write(f"[red]Failed to load styles.tcss:[/] {escape(str(e))}")
+        if not css_file.exists():
+            log.write(f"[yellow]Warning: styles.tcss not found at {css_file.resolve()}[/]")
+        else:
+            try:
+                with css_file.open("r", encoding="utf-8") as f:
+                    self.styles.update(f.read())
+            except Exception as e:
+                log.write(f"[red]Failed to load styles.tcss:[/] {escape(str(e))}")
 
         log.write("[bold #a366ff]Pantha Terminal Online.[/]")
         log.write("[#7c33ff]Type [bold]pantham[/] to awaken the core.[/]")
@@ -271,10 +267,7 @@ class PanthaTerminal(App):
 
         action = parts[1].lower()
 
-        # --- All note commands remain unchanged ---
-        # (list, create, view, append, delete, rename, search, export, import)
-        # The logic is exactly the same as your original code.
-
+        # --- All note commands ---
         if action == "list":
             if not self.notes:
                 log.write("[gray]No notes found.[/]")
@@ -432,7 +425,6 @@ pantham off[/]
         log = self.query_one("#log", RichLog)
         log.write(f"[bold #a366ff]{ascii_art}[/]")
         log.write(commands)
-
 
 # --------------------------------------------------
 # ENTRY
