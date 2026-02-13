@@ -2,21 +2,12 @@
    PANTHA TERMINAL — NEON CRT FRAME
    ============================================================ */
 
-/* NEON HEADER / FOOTER */
-#header_neon,
-#footer_neon {
-    background: #0f0016;
-    color: #ffb3ff;
-    border: heavy #b300ff;
-    text-style: bold;
-}
-
 Screen {
     background: #020005;
     color: #eadcff;
 }
 
-/* OUTER NEON FRAME (THIS IS THE FIX) */
+/* OUTER NEON FRAME */
 #frame {
     height: 100%;
     padding: 1;
@@ -36,10 +27,12 @@ Screen {
 }
 
 /* HEADER / FOOTER */
-Header, Footer {
+#header_neon,
+#footer_neon {
     background: #0f0016;
     color: #ffb3ff;
     border: heavy #b300ff;
+    text-style: bold;
 }
 
 /* BANNER */
@@ -53,57 +46,7 @@ Header, Footer {
     content-align: center middle;
 }
 
-/* MAIN LAYOUT */
-#main_row {
-    height: 1fr;
-}
-
-/* PANELS */
-#left_panel, #right_panel {
-    padding: 1;
-    background: #05000b;
-    border: heavy #6a00ff;
-}
-
-#left_panel {
-    width: 34;
-    margin-right: 1;
-}
-
-/* TITLES */
-#panel_title,
-#panel_title2,
-#output_title {
-    padding: 0 2;
-    margin-bottom: 1;
-    background: #180024;
-    color: #ff9bff;
-    border: heavy #9b00ff;
-    text-style: bold;
-}
-
-/* MODULES */
-#system_info,
-#hotkeys {
-    padding: 1;
-    margin-bottom: 1;
-    background: #07000d;
-    color: #d9c0ff;
-    border: solid #3d0066;
-}
-
 /* LOG */
-#log_wrap {
-    height: 1fr;
-    padding: 1;
-    background: #020004;
-    border: heavy #b300ff;
-}
-
-#log_wrap:focus-within {
-    border: heavy #ff4dff;
-}
-
 #log {
     padding: 1 2;
     background: #090012;
