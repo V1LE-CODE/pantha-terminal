@@ -12,6 +12,7 @@ from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
 
+
 # --------------------------------------------------
 # USER DATA (SAFE LOCATION)
 # --------------------------------------------------
@@ -21,7 +22,9 @@ def user_data_dir() -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
 
+
 HISTORY_FILE = user_data_dir() / "history.json"
+
 
 # --------------------------------------------------
 # BANNER
@@ -43,6 +46,7 @@ class PanthaBanner(Static):
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝                                                                                                   
 """
         )
+
 
 # --------------------------------------------------
 # APP
@@ -84,12 +88,27 @@ class PanthaTerminal(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        # Correct path to styles.tcss in the same folder as main.py
-        css_file = Path(__file__).parent / "styles.tcss"
         log = self.query_one("#log", RichLog)
+
+        # Load styles.tcss relative to script folder
+        css_file = Path(__file__).parent / "styles.tcss"
 
         if not css_file.exists():
             log.write(f"[yellow]Warning: styles.tcss not found at {css_file.resolve()}[/]")
+            log.write("[yellow]Using default embedded terminal styles.[/]")
+            default_styles = """
+            Screen {
+                background: #020005;
+                color: #eadcff;
+            }
+            #frame {
+                height: 100%;
+                padding: 1;
+                background: #020005;
+                border: heavy #ff4dff;
+            }
+            """
+            self.styles.update(default_styles)
         else:
             try:
                 with css_file.open("r", encoding="utf-8") as f:
@@ -267,7 +286,7 @@ class PanthaTerminal(App):
 
         action = parts[1].lower()
 
-        # --- All note commands ---
+        # ----------------- LIST -----------------
         if action == "list":
             if not self.notes:
                 log.write("[gray]No notes found.[/]")
@@ -277,6 +296,7 @@ class PanthaTerminal(App):
                 log.write(f"• {escape(t)}")
             return
 
+        # ----------------- CREATE -----------------
         if action == "create":
             if len(parts) < 3:
                 log.write("[yellow]note create <title>[/]")
@@ -290,6 +310,7 @@ class PanthaTerminal(App):
             log.write(f"[green]Created note:[/] {escape(title)}")
             return
 
+        # ----------------- VIEW -----------------
         if action == "view":
             title = parts[2]
             if title not in self.notes:
@@ -299,6 +320,7 @@ class PanthaTerminal(App):
             log.write(f"[bold]{escape(title)}[/]\n{content}")
             return
 
+        # ----------------- APPEND -----------------
         if action == "append":
             if len(parts) < 4:
                 log.write("[yellow]note append <title> <text>[/]")
@@ -312,6 +334,7 @@ class PanthaTerminal(App):
             log.write(f"[green]Appended to note:[/] {escape(title)}")
             return
 
+        # ----------------- DELETE -----------------
         if action == "delete":
             title = parts[2]
             if title not in self.notes:
@@ -322,6 +345,7 @@ class PanthaTerminal(App):
             log.write(f"[green]Deleted note:[/] {escape(title)}")
             return
 
+        # ----------------- RENAME -----------------
         if action == "rename":
             if len(parts) < 4:
                 log.write("[yellow]note rename <old> <new>[/]")
@@ -338,6 +362,7 @@ class PanthaTerminal(App):
             log.write(f"[green]Renamed note:[/] {escape(old)} → {escape(new)}")
             return
 
+        # ----------------- SEARCH -----------------
         if action == "search":
             if len(parts) < 3:
                 log.write("[yellow]note search <keyword>[/]")
@@ -352,6 +377,7 @@ class PanthaTerminal(App):
                 log.write(f"• {escape(t)}")
             return
 
+        # ----------------- EXPORT -----------------
         if action == "export":
             if len(parts) < 3:
                 log.write("[yellow]note export <title>[/]")
@@ -365,6 +391,7 @@ class PanthaTerminal(App):
             log.write(f"[green]Exported note:[/] {escape(title)} → {export_file}")
             return
 
+        # ----------------- IMPORT -----------------
         if action == "import":
             if len(parts) < 3:
                 log.write("[yellow]note import <file_path>[/]")
@@ -425,6 +452,7 @@ pantham off[/]
         log = self.query_one("#log", RichLog)
         log.write(f"[bold #a366ff]{ascii_art}[/]")
         log.write(commands)
+
 
 # --------------------------------------------------
 # ENTRY
