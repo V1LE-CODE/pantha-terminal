@@ -7,7 +7,7 @@ from pathlib import Path
 from shlex import split as shlex_split
 
 from textual.app import App, ComposeResult
-from textual.containers import Vertical, ScrollableContainer
+from textual.containers import ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
@@ -15,7 +15,6 @@ from rich.markup import escape
 # --------------------------------------------------
 # USER DATA (SAFE LOCATION)
 # --------------------------------------------------
-
 def user_data_dir() -> Path:
     path = Path.home() / ".pantha"
     path.mkdir(parents=True, exist_ok=True)
@@ -26,32 +25,32 @@ HISTORY_FILE = user_data_dir() / "history.json"
 # --------------------------------------------------
 # BANNER
 # --------------------------------------------------
-
 class PanthaBanner(Static):
-    def __init__(self):
-        super().__init__()
-        self.id = "banner"  # <-- ensures #banner styles apply
-
     def on_mount(self) -> None:
+        self.id = "banner"  # Ensure CSS applies
         self.update(
             r"""
+                   \    /\                                          
+                    )  ( ')                                          
+                    (  /  )                   (`\                    
+                     \(__)|                    ) )                  
+
 ██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗                  
-██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗                 
-██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║ -- SECURE NOTE TERMINAL
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║ ™ V1LE-CODE
-██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║                
-╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
+██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗                  
+██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║        --  S E C U R E  N O T E  T E R M I N A L             
+██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║             ™ V1LE-CODE
+██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║                 
+╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝                                                                                                   
 """
         )
 
 # --------------------------------------------------
 # APP
 # --------------------------------------------------
-
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal v1.1.2"
-    CSS_PATH = "app/styles.tcss"
+    CSS_PATH = str(Path(__file__).parent / "styles.tcss")  # Correct CSS path
 
     status_text: reactive[str] = reactive("Ready")
     NOTES_FILE = user_data_dir() / "notes.json"
@@ -69,27 +68,29 @@ class PanthaTerminal(App):
         self.load_notes()
         self.load_history()
 
-# --------------------------------------------------
-# UI
-# --------------------------------------------------
+    # --------------------------------------------------
+    # UI
+    # --------------------------------------------------
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=True, id="header_neon")
+        yield PanthaBanner()
 
-def compose(self) -> ComposeResult:
-    # Assign IDs so CSS applies correctly
-    yield Header(show_clock=True, id="header_neon")
-    yield PanthaBanner()
+        with ScrollableContainer():
+            yield RichLog(id="log", markup=True, wrap=True)
 
-    with ScrollableContainer():
-        yield RichLog(id="log", markup=True, wrap=True)
+        yield Static("", id="status_line")
+        yield Input(id="command_input", placeholder="Type a command...")
+        yield Footer(id="footer_neon")
 
-    yield Static("", id="status_line")
-    yield Input(id="command_input", placeholder="Type a command...")
-    yield Footer(id="footer_neon")
-
+    def on_mount(self) -> None:
+        log = self.query_one("#log", RichLog)
+        log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
+        log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
+        self.focus_input()
 
     # --------------------------------------------------
     # INPUT / HOTKEYS
     # --------------------------------------------------
-
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
         event.input.value = ""
@@ -108,6 +109,7 @@ def compose(self) -> ComposeResult:
         if event.key == "ctrl+c":
             self.exit()
 
+        # Up/Down history navigation
         inp = self.query_one("#command_input", Input)
         if event.key == "up" and self.command_history:
             self.history_index = max(0, self.history_index - 1)
@@ -126,7 +128,6 @@ def compose(self) -> ComposeResult:
     # --------------------------------------------------
     # NOTES STORAGE
     # --------------------------------------------------
-
     def load_notes(self) -> None:
         try:
             if self.NOTES_FILE.exists():
@@ -146,7 +147,6 @@ def compose(self) -> ComposeResult:
     # --------------------------------------------------
     # HISTORY
     # --------------------------------------------------
-
     def load_history(self) -> None:
         try:
             if HISTORY_FILE.exists():
@@ -157,15 +157,11 @@ def compose(self) -> ComposeResult:
             self.command_history = []
 
     def save_history(self) -> None:
-        HISTORY_FILE.write_text(
-            json.dumps(self.command_history, indent=2, ensure_ascii=False),
-            encoding="utf-8"
-        )
+        HISTORY_FILE.write_text(json.dumps(self.command_history, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # --------------------------------------------------
     # SAFE COMMAND EXECUTION
     # --------------------------------------------------
-
     def run_command_safe(self, cmd: str) -> None:
         log = self.query_one("#log", RichLog)
         log.write(f"[#b066ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
@@ -182,7 +178,6 @@ def compose(self) -> ComposeResult:
     # --------------------------------------------------
     # COMMAND ROUTER
     # --------------------------------------------------
-
     def run_command(self, cmd: str) -> None:
         low = cmd.lower()
         log = self.query_one("#log", RichLog)
@@ -217,7 +212,6 @@ def compose(self) -> ComposeResult:
     # --------------------------------------------------
     # STATUS
     # --------------------------------------------------
-
     def update_status(self, text: str) -> None:
         self.query_one("#status_line", Static).update(
             f"[#ff4dff]STATUS:[/] {escape(text)}"
@@ -226,7 +220,6 @@ def compose(self) -> ComposeResult:
     # --------------------------------------------------
     # NOTES
     # --------------------------------------------------
-
     def require_pantha(self) -> bool:
         if not self.pantha_mode:
             self.query_one("#log", RichLog).write(
@@ -247,7 +240,7 @@ def compose(self) -> ComposeResult:
             return
 
         if len(parts) < 2:
-            log.write("[yellow]Usage: note list|create|view|write|append|delete|rename|search|export|import[/]")
+            log.write("[yellow]Usage: note list|create|view|append|delete|rename|search|export|import[/]")
             return
 
         action = parts[1].lower()
@@ -377,7 +370,6 @@ def compose(self) -> ComposeResult:
     # --------------------------------------------------
     # PANTHAM ASCII + COMMANDS
     # --------------------------------------------------
-
     def show_pantha_ascii(self) -> None:
         ascii_art = r"""
 (\ 
@@ -389,7 +381,7 @@ def compose(self) -> ComposeResult:
    ==).      \__________\
   (__)       ()__________)⠀⠀⠀⠀⠀ 
 """
-        commands = """                                                         
+        commands = """
 [#ff4dff]██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗[/]
 [#ff4dff]██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║[/]
 [#ff4dff]██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║[/]
@@ -422,6 +414,5 @@ pantham off[/]
 # --------------------------------------------------
 # ENTRY
 # --------------------------------------------------
-
 if __name__ == "__main__":
     PanthaTerminal().run()
