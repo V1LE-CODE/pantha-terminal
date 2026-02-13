@@ -2,6 +2,15 @@
    PANTHA TERMINAL — NEON CRT FRAME
    ============================================================ */
 
+/* NEON HEADER / FOOTER */
+#header_neon,
+#footer_neon {
+    background: #0f0016;
+    color: #ffb3ff;
+    border: heavy #b300ff;
+    text-style: bold;
+}
+
 Screen {
     background: #020005;
     color: #eadcff;
