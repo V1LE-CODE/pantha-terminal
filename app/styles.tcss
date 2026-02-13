@@ -1,104 +1,75 @@
-/* ============================================================
-   PANTHA TERMINAL — NEON CRT FRAME
-   ============================================================ */
-
+/* ----------------- GLOBAL ----------------- */
 Screen {
-    background: #020005;
-    color: #eadcff;
-}
-
-/* OUTER NEON FRAME */
-#frame {
-    height: 100%;
-    padding: 1;
-    background: #020005;
-    border: heavy #ff4dff;
-}
-
-#frame:focus-within {
-    border: heavy #ff8cff;
-}
-
-/* INNER ROOT */
-#root {
-    height: 100%;
-    padding: 1 2;
-    background: #050009;
+    background: #0a0015;
+    color: #c3aaff;
 }
 
 /* HEADER / FOOTER */
-#header_neon,
-#footer_neon {
-    background: #0f0016;
-    color: #ffb3ff;
-    border: heavy #b300ff;
-    text-style: bold;
+#header, #footer {
+    background: #120024;
+    color: #d3b3ff;
+    border: none;
 }
 
 /* BANNER */
 #banner {
-    padding: 1 3;
-    margin-bottom: 1;
-    background: #080010;
-    color: #ffb7ff;
-    border: heavy #ff4dff;
+    padding: 1;
+    background: #1a0033;
+    color: #e0b3ff;
     text-style: bold;
     content-align: center middle;
 }
 
 /* LOG */
 #log {
-    padding: 1 2;
-    background: #090012;
-    color: #f8edff;
+    background: #0a0015;
+    color: #d3b3ff;
+    padding: 1;
 }
 
 /* STATUS */
 #status_line {
     height: 3;
     padding: 0 1;
-    margin-top: 1;
-    background: #100016;
-    color: #b58cff;
-    border: solid #6a00ff;
+    background: #120024;
+    color: #c8aaff;
     text-style: bold;
 }
 
 /* INPUT */
 #command_input {
     height: 3;
-    margin-top: 1;
     padding: 0 1;
-    background: #14001f;
+    background: #1c0033;
     color: #ffffff;
-    border: heavy #9b00ff;
+    border: solid #5e00aa;
 }
 
 #command_input:focus {
-    background: #220035;
-    border: heavy #ff4dff;
+    background: #2a0055;
+    border: solid #a55eff;
 }
 
 /* CURSOR */
 Input > .input--cursor {
-    background: #ff4dff;
-    color: #050009;
+    background: #a55eff;
+    color: #1c0033;
 }
 
 Input > .input--selection {
-    background: #7a00ff;
+    background: #5e00aa;
     color: #ffffff;
 }
 
 /* SCROLLBAR */
 Scrollbar {
-    background: #090010;
+    background: #0a0015;
 }
 
 Scrollbar > .scrollbar--thumb {
-    background: #7a00ff;
+    background: #5e00aa;
 }
 
 Scrollbar > .scrollbar--thumb:hover {
-    background: #ff4dff;
+    background: #a55eff;
 }
