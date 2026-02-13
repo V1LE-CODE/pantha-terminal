@@ -7,7 +7,7 @@ from pathlib import Path
 from shlex import split as shlex_split
 
 from textual.app import App, ComposeResult
-from textual.containers import Vertical, ScrollableContainer
+from textual.containers import ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
@@ -52,6 +52,34 @@ class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal v1.1.2"
 
+    CSS = """
+    Screen {
+        background: #020005;
+        color: #eadcff;
+    }
+    #log {
+        background: #1a001f;
+        color: #eadcff;
+    }
+    Input {
+        background: #120017;
+        color: #eadcff;
+        border: round #a366ff;
+    }
+    #status_line {
+        background: #120017;
+        color: #a366ff;
+    }
+    Header {
+        background: #1a001f;
+        color: #ff4dff;
+    }
+    Footer {
+        background: #1a001f;
+        color: #ff4dff;
+    }
+    """
+
     status_text: reactive[str] = reactive("Ready")
     NOTES_FILE = user_data_dir() / "notes.json"
 
@@ -84,42 +112,6 @@ class PanthaTerminal(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        # -----------------------
-        # Embedded purple/black theme
-        # -----------------------
-        embedded_css = """
-        Screen {
-            background: #020005;
-            color: #eadcff;
-        }
-        #log {
-            background: #1a001f;
-            color: #eadcff;
-        }
-        Input {
-            background: #120017;
-            color: #eadcff;
-            border: round #a366ff;
-        }
-        #status_line {
-            background: #120017;
-            color: #a366ff;
-        }
-        Header {
-            background: #1a001f;
-            color: #ff4dff;
-        }
-        Footer {
-            background: #1a001f;
-            color: #ff4dff;
-        }
-        """
-        try:
-            self.styles.update(embedded_css)
-        except Exception as e:
-            log = self.query_one("#log", RichLog)
-            log.write(f"[red]Failed to apply embedded styles:[/] {escape(str(e))}")
-
         log = self.query_one("#log", RichLog)
         log.write("[bold #a366ff]Pantha Terminal Online.[/]")
         log.write("[#7c33ff]Type [bold]pantham[/] to awaken the core.[/]")
@@ -263,7 +255,7 @@ class PanthaTerminal(App):
         )
 
     # --------------------------------------------------
-    # NOTES
+    # NOTES COMMANDS
     # --------------------------------------------------
 
     def require_pantha(self) -> bool:
@@ -414,10 +406,11 @@ class PanthaTerminal(App):
         log.write("[yellow]Unknown note command.[/]")
 
     # --------------------------------------------------
-    # PANTHAM ASCII + COMMANDS
+    # PANTHAM ASCII
     # --------------------------------------------------
 
     def show_pantha_ascii(self) -> None:
+        log = self.query_one("#log", RichLog)
         ascii_art = r"""
 (\ 
 \'\ 
@@ -454,7 +447,6 @@ class PanthaTerminal(App):
 CTRL+C → quit
 pantham off[/]
 """
-        log = self.query_one("#log", RichLog)
         log.write(f"[bold #a366ff]{ascii_art}[/]")
         log.write(commands)
 
