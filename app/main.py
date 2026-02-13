@@ -50,7 +50,7 @@ class PanthaBanner(Static):
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal v1.1.2"
+    SUB_TITLE = "Official Pantha Terminal v1.1.3"
 
     CSS = """
     Screen {
