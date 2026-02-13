@@ -55,6 +55,7 @@ class PanthaBanner(Static):
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal v1.1.2"
+    CSS_PATH = Path(__file__).parent / "styles.tcss"  # <-- Load your styles.tcss automatically
 
     status_text: reactive[str] = reactive("Ready")
     NOTES_FILE = user_data_dir() / "notes.json"
@@ -88,8 +89,13 @@ class PanthaTerminal(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        # Load the styles.tcss explicitly (optional but ensures styles applied immediately)
+        css_file = Path(__file__).parent / "styles.tcss"
+        if css_file.exists():
+            self.load_stylesheet(css_file.read_text())
+
         log = self.query_one("#log", RichLog)
-        log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
+        log.write("[bold #ff4dff]Pantha Terminal Online with Styles Loaded.[/]")
         log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
         self.focus_input()
 
