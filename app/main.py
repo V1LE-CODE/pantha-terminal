@@ -55,7 +55,6 @@ class PanthaBanner(Static):
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal v1.1.2"
-    CSS_PATH = "app/styles.tcss"  # <-- Use a string path relative to main.py
 
     status_text: reactive[str] = reactive("Ready")
     NOTES_FILE = user_data_dir() / "notes.json"
@@ -89,11 +88,21 @@ class PanthaTerminal(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        # Safely load styles.tcss
+        css_file = Path(__file__).parent / "styles.tcss"
         log = self.query_one("#log", RichLog)
+        if css_file.exists():
+            try:
+                with css_file.open("r", encoding="utf-8") as f:
+                    self.styles.update(f.read())
+            except Exception as e:
+                log.write(f"[red]Failed to load styles.tcss:[/] {escape(str(e))}")
+        else:
+            log.write("[yellow]Warning: styles.tcss not found.[/]")
+
         log.write("[bold #ff4dff]Pantha Terminal Online.[/]")
         log.write("[#b066ff]Type [bold]pantham[/] to awaken the core.[/]")
         self.focus_input()
-
 
     # --------------------------------------------------
     # INPUT / HOTKEYS
@@ -397,8 +406,8 @@ class PanthaTerminal(App):
   (__)       ()__________)⠀⠀⠀⠀⠀ 
 """
 
-        commands = """                                                        
-                                                        
+        commands = """                                                         
+                                                         
                                                                    
 [#ff4dff]██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗[/]
 [#ff4dff]██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║[/]
