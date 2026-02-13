@@ -89,7 +89,7 @@ class PanthaTerminal(App):
 
     def on_mount(self) -> None:
         # Safely load styles.tcss
-        css_file = Path(__file__).parent / "styles.tcss"
+        css_file = Path(__file__).parent / "app" / "styles.tcss"
         log = self.query_one("#log", RichLog)
         if css_file.exists():
             try:
