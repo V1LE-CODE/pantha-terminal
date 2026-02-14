@@ -21,7 +21,7 @@ jobs:
       - name: Set version (from tag or fallback)
         shell: pwsh
         run: |
-          $ver = "v1.1.2"
+          $ver = "v1.1.3"
           if ("${{ github.ref_type }}" -eq "tag") {
             $ver = "${{ github.ref_name }}"
           }
