@@ -59,12 +59,12 @@ class PanthaTerminal(App):
     }
     #log {
         background: #1a001f;
-        color: #bf00ff;
+        color: #f8deff;
     }
     Input {
         background: #120017;
         color: #ffffff;
-        border: round #f8deff;
+        border: round #580071;
     }
     #status_line {
         background: #120017;
