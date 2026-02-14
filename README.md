@@ -8,8 +8,6 @@
 
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cfc90208436171438f65e879c7933a3244d8e5ac/assets/icon.ico)
 
-Pantha v1.1.2
-
 ![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-purple)
 ![Platform](https://img.shields.io/badge/platform-Cross--Platform-brightgreen)
