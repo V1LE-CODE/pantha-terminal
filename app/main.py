@@ -68,15 +68,15 @@ class PanthaTerminal(App):
     }
     #status_line {
         background: #120017;
-        color: #a366ff;
+        color: #00ff3c;
     }
     Header {
         background: #1a001f;
-        color: #823cb4;
+        color: #ffffff;
     }
     Footer {
         background: #1a001f;
-        color: #823cb4;
+        color: #ffffff;
     }
     """
 
