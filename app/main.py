@@ -13,7 +13,7 @@ from textual.reactive import reactive
 from rich.markup import escape
 
 # --------------------------------------------------
-# USER DATA (SAFE LOCATION)
+# USER DATA
 # --------------------------------------------------
 
 def user_data_dir() -> Path:
@@ -401,7 +401,7 @@ class PanthaTerminal(App):
         log.write("[yellow]Unknown note command.[/]")
 
     # --------------------------------------------------
-    # PANTHAM ASCII
+    # PANTHAM Text
     # --------------------------------------------------
 
     def show_pantha_ascii(self) -> None:
