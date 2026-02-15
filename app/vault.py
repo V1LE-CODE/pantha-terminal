@@ -1,15 +1,11 @@
-"""
-PANTHA VAULT
-============
-
-Encrypted vault for Pantha Terminal notes.
-"""
-
+# app/vault.py
 from __future__ import annotations
-
-import time
+import os
 import uuid
+import time
 from typing import Dict, Optional
+from pathlib import Path
+import json
 
 from encryption import PanthaCrypto, PanthaCryptoError
 from storage import Storage, StorageError
@@ -24,6 +20,9 @@ class VaultLockedError(VaultError):
 
 
 class Vault:
+    """
+    Encrypted vault for Pantha using title-based note management.
+    """
     INDEX_FILE = "index.pantha"
 
     def __init__(self, base_dir: str):
@@ -32,10 +31,7 @@ class Vault:
         self._password: Optional[str] = None
         self._index: Dict[str, Dict] = {}
 
-    # -------------------------
-    # VAULT LIFECYCLE
-    # -------------------------
-
+    # ----------------- VAULT -----------------
     def unlock(self, password: str):
         self._password = password
         if self._index_exists():
@@ -55,10 +51,7 @@ class Vault:
         if not self.is_unlocked():
             raise VaultLockedError("Vault is locked.")
 
-    # -------------------------
-    # INDEX MANAGEMENT
-    # -------------------------
-
+    # ----------------- INDEX -----------------
     def _index_exists(self) -> bool:
         try:
             self.storage.read_bytes(self.INDEX_FILE)
@@ -68,7 +61,7 @@ class Vault:
 
     def _save_index(self):
         encrypted = self.crypto.encrypt(
-            plaintext=str(self._index).encode(),
+            plaintext=json.dumps(self._index).encode(),
             password=self._password,
             aad=b"vault-index",
         )
@@ -77,85 +70,51 @@ class Vault:
     def _load_index(self) -> Dict:
         encrypted = self.storage.read_bytes(self.INDEX_FILE)
         decrypted = self.crypto.decrypt(encrypted, self._password)
-        return eval(decrypted.decode())  # controlled internal data
+        return json.loads(decrypted.decode())
 
-    # -------------------------
-    # NOTE OPERATIONS
-    # -------------------------
-
+    # ----------------- NOTE METHODS -----------------
     def create_note(self, title: str, content: str) -> str:
         self._require_unlocked()
+        if title in self._index:
+            raise VaultError("Note already exists.")
+
         note_id = str(uuid.uuid4())
         filename = f"{note_id}.note"
-        encrypted = self.crypto.encrypt(
-            content.encode(),
-            self._password,
-            aad=note_id.encode(),
-        )
+        encrypted = self.crypto.encrypt(content.encode(), self._password, aad=note_id.encode())
         self.storage.write_bytes(filename, encrypted)
-        self._index[note_id] = {
-            "title": title,
-            "file": filename,
-            "created": time.time(),
-            "updated": time.time(),
-        }
+
+        self._index[title] = {"id": note_id, "file": filename, "created": time.time(), "updated": time.time()}
         self._save_index()
-        return note_id
+        return title
 
     def read_note_by_title(self, title: str) -> str:
         self._require_unlocked()
-        note_id = self._get_id_by_title(title)
-        if not note_id:
+        meta = self._index.get(title)
+        if not meta:
             raise VaultError("Note not found.")
-        encrypted = self.storage.read_bytes(self._index[note_id]["file"])
+
+        encrypted = self.storage.read_bytes(meta["file"])
         return self.crypto.decrypt(encrypted, self._password).decode()
 
     def update_note_by_title(self, title: str, new_content: str):
         self._require_unlocked()
-        note_id = self._get_id_by_title(title)
-        if not note_id:
+        meta = self._index.get(title)
+        if not meta:
             raise VaultError("Note not found.")
-        encrypted = self.crypto.encrypt(
-            new_content.encode(),
-            self._password,
-            aad=note_id.encode(),
-        )
-        self.storage.write_bytes(self._index[note_id]["file"], encrypted)
-        self._index[note_id]["updated"] = time.time()
+
+        encrypted = self.crypto.encrypt(new_content.encode(), self._password, aad=meta["id"].encode())
+        self.storage.write_bytes(meta["file"], encrypted)
+        meta["updated"] = time.time()
         self._save_index()
 
     def delete_note_by_title(self, title: str):
         self._require_unlocked()
-        note_id = self._get_id_by_title(title)
-        if not note_id:
+        meta = self._index.pop(title, None)
+        if not meta:
             raise VaultError("Note not found.")
-        self.storage.delete(self._index[note_id]["file"])
-        del self._index[note_id]
+        self.storage.delete(meta["file"])
         self._save_index()
 
     def list_notes(self) -> Dict[str, Dict]:
         self._require_unlocked()
         return dict(self._index)
-
-    def _get_id_by_title(self, title: str) -> Optional[str]:
-        for note_id, meta in self._index.items():
-            if meta["title"] == title:
-                return note_id
-        return None
-
-    # -------------------------
-    # PASSWORD ROTATION
-    # -------------------------
-
-    def rotate_password(self, new_password: str):
-        self._require_unlocked()
-        for note_id, meta in self._index.items():
-            encrypted = self.storage.read_bytes(meta["file"])
-            rotated = self.crypto.rotate_password(
-                encrypted,
-                self._password,
-                new_password,
-            )
-            self.storage.write_bytes(meta["file"], rotated)
-        self._password = new_password
-        self._save_index()
