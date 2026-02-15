@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import json
 import traceback
 from pathlib import Path
 from shlex import split as shlex_split
@@ -12,6 +11,9 @@ from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
 
+from vault import Vault, VaultError
+
+
 # --------------------------------------------------
 # USER DATA
 # --------------------------------------------------
@@ -21,7 +23,6 @@ def user_data_dir() -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
 
-HISTORY_FILE = user_data_dir() / "history.json"
 
 # --------------------------------------------------
 # BANNER
@@ -30,66 +31,45 @@ HISTORY_FILE = user_data_dir() / "history.json"
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
-            r"""                                   
-██████   █████  ███    ██ ████████ ██   ██  █████                  
-██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██                   
-██████  ███████ ██ ██  ██    ██    ███████ ███████         --  S E C U R E  N O T E  T E R M I N A L             
-██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██              ™ V1LE-CODE
-██      ██   ██ ██   ████    ██    ██   ██ ██   ██                                                               
+            r"""
+██████   █████  ███    ██ ████████ ██   ██  █████
+██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██
+██████  ███████ ██ ██  ██    ██    ███████ ███████
+██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██
+██      ██   ██ ██   ████    ██    ██   ██ ██   ██
 """
         )
+
 
 # --------------------------------------------------
 # APP
 # --------------------------------------------------
 
 class PanthaTerminal(App):
+
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal v1.1.3"
+    SUB_TITLE = "Official Encrypted Pantha Terminal"
 
     CSS = """
-    Screen {
-        background: #020005;
-        color: #eadcff;
-    }
-    #log {
-        background: #1a001f;
-        color: #ffffff;
-    }
-    Input {
-        background: #120017;
-        color: #ffffff;
-        border: round #ffffff;
-    }
-    #status_line {
-        background: #120017;
-        color: #00ff3c;
-    }
-    Header {
-        background: #1a001f;
-        color: #ffffff;
-    }
-    Footer {
-        background: #1a001f;
-        color: #ffffff;
-    }
+    Screen { background: #020005; color: #eadcff; }
+    #log { background: #1a001f; }
+    Input { background: #120017; border: round #ffffff; }
+    #status_line { background: #120017; color: #00ff3c; }
     """
 
     status_text: reactive[str] = reactive("Ready")
-    NOTES_FILE = user_data_dir() / "notes.json"
 
     def __init__(self) -> None:
         super().__init__()
-        self.pantha_mode = False
-        self.notes: dict[str, str] = {}
-        self.command_history: list[str] = []
-        self.history_index = -1
 
-        self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
+        self.username = os.environ.get("USERNAME") or "pantha"
         self.hostname = os.environ.get("COMPUTERNAME") or "local"
 
-        self.load_notes()
-        self.load_history()
+        self.vault = Vault(str(user_data_dir()))
+        self.awaiting_password = False
+
+        self.command_history: list[str] = []
+        self.history_index = -1
 
     # --------------------------------------------------
     # UI
@@ -109,87 +89,45 @@ class PanthaTerminal(App):
     def on_mount(self) -> None:
         log = self.query_one("#log", RichLog)
         log.write("[bold #a366ff]Pantha Terminal Online.[/]")
-        log.write("[#7c33ff]Type [bold]pantham[/] to awaken the core.[/]")
+        log.write("[#7c33ff]Type [bold]pantham[/] to awaken encrypted vault.[/]")
         self.focus_input()
 
     # --------------------------------------------------
-    # INPUT / HOTKEYS
+    # INPUT
     # --------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
         event.input.value = ""
-        self.run_command_safe(cmd)
-        self.focus_input()
 
-    def on_key(self, event) -> None:
-        log = self.query_one("#log", RichLog)
-
-        if event.key == "ctrl+l":
-            log.clear()
-            self.update_status("Cleared")
-            event.stop()
+        if self.awaiting_password:
+            self.handle_password(cmd)
+            self.focus_input()
             return
 
-        if event.key == "ctrl+c":
-            self.exit()
-
-        inp = self.query_one("#command_input", Input)
-        if event.key == "up" and self.command_history:
-            self.history_index = max(0, self.history_index - 1)
-            inp.value = self.command_history[self.history_index]
-            inp.cursor_position = len(inp.value)
-            event.stop()
-        if event.key == "down" and self.command_history:
-            self.history_index = min(len(self.command_history), self.history_index + 1)
-            inp.value = "" if self.history_index >= len(self.command_history) else self.command_history[self.history_index]
-            inp.cursor_position = len(inp.value)
-            event.stop()
+        self.run_command_safe(cmd)
+        self.focus_input()
 
     def focus_input(self) -> None:
         self.query_one("#command_input", Input).focus()
 
     # --------------------------------------------------
-    # NOTES STORAGE
+    # PASSWORD FLOW
     # --------------------------------------------------
 
-    def load_notes(self) -> None:
+    def handle_password(self, password: str) -> None:
+        log = self.query_one("#log", RichLog)
         try:
-            if self.NOTES_FILE.exists():
-                self.notes = json.loads(self.NOTES_FILE.read_text("utf-8"))
-            else:
-                self.notes = {}
-                self.save_notes()
+            self.vault.unlock(password)
+            log.write("[green]Vault unlocked.[/]")
+            self.update_status("VAULT UNLOCKED")
         except Exception:
-            self.notes = {}
-
-    def save_notes(self) -> None:
-        self.NOTES_FILE.write_text(
-            json.dumps(self.notes, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+            log.write("[red]Incorrect password.[/]")
+        finally:
+            self.awaiting_password = False
 
     # --------------------------------------------------
-    # HISTORY
-    # --------------------------------------------------
-
-    def load_history(self) -> None:
-        try:
-            if HISTORY_FILE.exists():
-                self.command_history = json.loads(HISTORY_FILE.read_text("utf-8"))
-            else:
-                self.command_history = []
-        except Exception:
-            self.command_history = []
-
-    def save_history(self) -> None:
-        HISTORY_FILE.write_text(
-            json.dumps(self.command_history, indent=2, ensure_ascii=False),
-            encoding="utf-8"
-        )
-
-    # --------------------------------------------------
-    # SAFE COMMAND EXECUTION
+    # COMMAND EXECUTION
     # --------------------------------------------------
 
     def run_command_safe(self, cmd: str) -> None:
@@ -197,34 +135,31 @@ class PanthaTerminal(App):
         log.write(f"[#7c33ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
 
         try:
-            self.command_history.append(cmd)
-            self.history_index = len(self.command_history)
-            self.save_history()
             self.run_command(cmd)
         except Exception:
             log.write("[bold red]INTERNAL ERROR[/]")
             log.write(escape(traceback.format_exc()))
 
-    # --------------------------------------------------
-    # COMMAND ROUTER
-    # --------------------------------------------------
-
     def run_command(self, cmd: str) -> None:
         low = cmd.lower()
         log = self.query_one("#log", RichLog)
 
+        # ---------------- PANTHAM ----------------
         if low == "pantham":
-            self.pantha_mode = True
-            self.show_pantha_ascii()
-            self.update_status("PANTHAM MODE ONLINE")
+            if not self.vault.is_unlocked():
+                log.write("[yellow]Enter master password:[/]")
+                self.awaiting_password = True
+            else:
+                self.show_pantha_ascii()
             return
 
         if low == "pantham off":
-            self.pantha_mode = False
-            log.write("[gray]Pantham disengaged.[/]")
-            self.update_status("PANTHAM MODE OFF")
+            self.vault.lock()
+            log.write("[gray]Vault locked.[/]")
+            self.update_status("LOCKED")
             return
 
+        # ---------------- NOTES ----------------
         if low.startswith("note"):
             self.handle_note_command(cmd)
             return
@@ -250,200 +185,146 @@ class PanthaTerminal(App):
         )
 
     # --------------------------------------------------
-    # NOTES COMMANDS
+    # NOTE COMMANDS (ENCRYPTED BACKEND)
     # --------------------------------------------------
 
-    def require_pantha(self) -> bool:
-        if not self.pantha_mode:
-            self.query_one("#log", RichLog).write(
-                "[red]Notes locked. Enter [bold]pantham[/] first.[/]"
-            )
-            return False
-        return True
-
     def handle_note_command(self, cmd: str) -> None:
-        if not self.require_pantha():
-            return
 
         log = self.query_one("#log", RichLog)
+
+        if not self.vault.is_unlocked():
+            log.write("[red]Vault locked. Use pantham first.[/]")
+            return
+
         try:
             parts = shlex_split(cmd)
         except Exception:
-            log.write("[red]Failed to parse command.[/]")
+            log.write("[red]Invalid command format.[/]")
             return
 
         if len(parts) < 2:
-            log.write("[yellow]Usage: note list|create|view|append|delete|rename|search|export|import[/]")
+            log.write("[yellow]note list|create|view|append|delete|rename|search|export|import[/]")
             return
 
         action = parts[1].lower()
+        notes = self.vault.list_notes()
 
-        # ----------------- LIST -----------------
+        # LIST
         if action == "list":
-            if not self.notes:
+            if not notes:
                 log.write("[gray]No notes found.[/]")
                 return
-            log.write("[bold]Notes:[/]")
-            for t in self.notes:
-                log.write(f"• {escape(t)}")
+            log.write("[bold]Encrypted Notes:[/]")
+            for meta in notes.values():
+                log.write(f"• {escape(meta['title'])}")
             return
 
-        # ----------------- CREATE -----------------
+        # CREATE
         if action == "create":
-            if len(parts) < 3:
-                log.write("[yellow]note create <title>[/]")
-                return
             title = parts[2]
-            if title in self.notes:
-                log.write("[red]Note already exists.[/]")
-                return
-            self.notes[title] = ""
-            self.save_notes()
-            log.write(f"[green]Created note:[/] {escape(title)}")
+            self.vault.create_note(title, "")
+            log.write(f"[green]Created encrypted note:[/] {escape(title)}")
             return
 
-        # ----------------- VIEW -----------------
+        # VIEW
         if action == "view":
             title = parts[2]
-            if title not in self.notes:
-                log.write("[red]Note not found.[/]")
-                return
-            content = escape(self.notes[title]) or "[gray]<empty>[/]"
-            log.write(f"[bold]{escape(title)}[/]\n{content}")
+            for nid, meta in notes.items():
+                if meta["title"] == title:
+                    content = self.vault.read_note(nid)
+                    log.write(f"[bold]{escape(title)}[/]\n{escape(content)}")
+                    return
+            log.write("[red]Note not found.[/]")
             return
 
-        # ----------------- APPEND -----------------
+        # APPEND
         if action == "append":
-            if len(parts) < 4:
-                log.write("[yellow]note append <title> <text>[/]")
-                return
-            title, text = parts[2], " ".join(parts[3:])
-            if title not in self.notes:
-                log.write("[red]Note not found.[/]")
-                return
-            self.notes[title] += "\n" + text
-            self.save_notes()
-            log.write(f"[green]Appended to note:[/] {escape(title)}")
+            title = parts[2]
+            text = " ".join(parts[3:])
+            for nid, meta in notes.items():
+                if meta["title"] == title:
+                    old = self.vault.read_note(nid)
+                    self.vault.update_note(nid, old + "\n" + text)
+                    log.write(f"[green]Updated encrypted note:[/] {escape(title)}")
+                    return
+            log.write("[red]Note not found.[/]")
             return
 
-        # ----------------- DELETE -----------------
+        # DELETE
         if action == "delete":
             title = parts[2]
-            if title not in self.notes:
-                log.write("[red]Note not found.[/]")
-                return
-            del self.notes[title]
-            self.save_notes()
-            log.write(f"[green]Deleted note:[/] {escape(title)}")
+            for nid, meta in notes.items():
+                if meta["title"] == title:
+                    self.vault.delete_note(nid)
+                    log.write(f"[green]Deleted encrypted note:[/] {escape(title)}")
+                    return
+            log.write("[red]Note not found.[/]")
             return
 
-        # ----------------- RENAME -----------------
+        # RENAME
         if action == "rename":
-            if len(parts) < 4:
-                log.write("[yellow]note rename <old> <new>[/]")
-                return
             old, new = parts[2], parts[3]
-            if old not in self.notes:
-                log.write("[red]Note not found.[/]")
-                return
-            if new in self.notes:
-                log.write("[red]A note with that name already exists.[/]")
-                return
-            self.notes[new] = self.notes.pop(old)
-            self.save_notes()
-            log.write(f"[green]Renamed note:[/] {escape(old)} → {escape(new)}")
+            for nid, meta in notes.items():
+                if meta["title"] == old:
+                    content = self.vault.read_note(nid)
+                    self.vault.delete_note(nid)
+                    self.vault.create_note(new, content)
+                    log.write(f"[green]Renamed:[/] {escape(old)} → {escape(new)}")
+                    return
+            log.write("[red]Note not found.[/]")
             return
 
-        # ----------------- SEARCH -----------------
+        # SEARCH
         if action == "search":
-            if len(parts) < 3:
-                log.write("[yellow]note search <keyword>[/]")
-                return
             keyword = " ".join(parts[2:])
-            found = [t for t, c in self.notes.items() if keyword.lower() in c.lower()]
+            found = []
+            for nid, meta in notes.items():
+                content = self.vault.read_note(nid)
+                if keyword.lower() in content.lower():
+                    found.append(meta["title"])
             if not found:
-                log.write("[gray]No notes contain that keyword.[/]")
+                log.write("[gray]No matches found.[/]")
                 return
-            log.write(f"[bold]Notes containing '{escape(keyword)}':[/]")
+            log.write(f"[bold]Matches for '{escape(keyword)}':[/]")
             for t in found:
                 log.write(f"• {escape(t)}")
             return
 
-        # ----------------- EXPORT -----------------
+        # EXPORT
         if action == "export":
-            if len(parts) < 3:
-                log.write("[yellow]note export <title>[/]")
-                return
             title = parts[2]
-            if title not in self.notes:
-                log.write("[red]Note not found.[/]")
-                return
-            export_file = user_data_dir() / f"{title}.txt"
-            export_file.write_text(self.notes[title], encoding="utf-8")
-            log.write(f"[green]Exported note:[/] {escape(title)} → {export_file}")
+            for nid, meta in notes.items():
+                if meta["title"] == title:
+                    content = self.vault.read_note(nid)
+                    export_file = user_data_dir() / f"{title}.txt"
+                    export_file.write_text(content, encoding="utf-8")
+                    log.write(f"[green]Exported:[/] {export_file}")
+                    return
+            log.write("[red]Note not found.[/]")
             return
 
-        # ----------------- IMPORT -----------------
+        # IMPORT
         if action == "import":
-            if len(parts) < 3:
-                log.write("[yellow]note import <file_path>[/]")
-                return
             path = Path(parts[2])
-            if not path.exists() or not path.is_file():
+            if not path.exists():
                 log.write("[red]File not found.[/]")
                 return
-            title = path.stem
-            self.notes[title] = path.read_text(encoding="utf-8")
-            self.save_notes()
-            log.write(f"[green]Imported note:[/] {escape(title)} from {path}")
+            content = path.read_text(encoding="utf-8")
+            self.vault.create_note(path.stem, content)
+            log.write(f"[green]Imported encrypted note:[/] {escape(path.stem)}")
             return
 
         log.write("[yellow]Unknown note command.[/]")
 
     # --------------------------------------------------
-    # PANTHAM Text
+    # PANTHAM ASCII
     # --------------------------------------------------
 
     def show_pantha_ascii(self) -> None:
         log = self.query_one("#log", RichLog)
-        ascii_art = r"""
-(\ 
-\'\ 
- \'\     __________  
- / '|   ()_________)
- \ '/    \ ~~~~~~~~ \
-   \       \ ~~~~~~   \
-   ==).      \__________\
-  (__)       ()__________)⠀⠀⠀⠀⠀ 
-"""
-        commands = """                                                         
-[#a366ff]██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗[/]
-[#a366ff]██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║[/]
-[#a366ff]██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║[/]
-[#a366ff]██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║[/]
-[#a366ff]██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║[/]
-[#a366ff]╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝[/]
-[#a366ff]░▒▓█▓▒░[/]  [#7c33ff]P A N T H A M   N O T E S  G R A N T E D[/]  [#a366ff]░▒▓█▓▒░[/]
+        log.write("[bold #a366ff]PANTHAM MODE GRANTED — ENCRYPTED ACCESS[/]")
+        log.write("[#7c33ff]All notes are encrypted at rest using AES-256-GCM + Argon2.[/]")
 
-[bold #a366ff]PANTHAM COMMANDS[/]
-[#7c33ff]────────────────[/]
-
-[#7c33ff]note[/] [#ffffff]list[/]
-[#7c33ff]note[/] [#ffffff]create[/] [#888888]<title>[/]
-[#7c33ff]note[/] [#ffffff]view[/] [#888888]<title>[/]
-[#7c33ff]note[/] [#ffffff]append[/] [#888888]<title> <text>[/]
-[#7c33ff]note[/] [#ffffff]delete[/] [#888888]<title>[/]
-[#7c33ff]note[/] [#ffffff]rename[/] [#888888]<old> <new>[/]
-[#7c33ff]note[/] [#ffffff]search[/] [#888888]<keyword>[/]
-[#7c33ff]note[/] [#ffffff]export[/] [#888888]<title>[/]
-[#7c33ff]note[/] [#ffffff]import[/] [#888888]<file_path>[/]
-
-[#888888]CTRL+L → clear
-CTRL+C → quit
-pantham off[/]
-"""
-        log.write(f"[bold #a366ff]{ascii_art}[/]")
-        log.write(commands)
 
 # --------------------------------------------------
 # ENTRY
