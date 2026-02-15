@@ -5,7 +5,7 @@
 ---
 ![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-purple)
-![Platform](https://img.shields.io/badge/platform-Cross--Platform-brightgreen)
+![Platform](https://img.shields.io/badge/platform-Windows-brightgreen)
 ![GitHub stars](https://img.shields.io/github/stars/V1LE-CODE/pantha-terminal?style=social)
 ---
 
