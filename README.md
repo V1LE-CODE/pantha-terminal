@@ -1,4 +1,4 @@
-# ‼️Introducing Pantha #1 🏆 Best Note-Based Terminal
+#Introducing.. Pantha #1 🏆 Best Note-Based Terminal‼️
 
 ![Pantha Terminal Banner](assets/banner.bmp) 
 
