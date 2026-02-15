@@ -205,6 +205,7 @@ class PanthaTerminal(App):
                 self.pantha_mode = True
                 self.update_status("Vault Unlocked")
                 log.write("[green]Vault unlocked.[/]")
+                self.show_pantha_ascii()
             except VaultError:
                 log.write("[red]Failed to unlock vault.[/]")
             return
@@ -236,69 +237,173 @@ class PanthaTerminal(App):
 
     def handle_note_command(self, parts: list[str]):
         log = self.query_one("#log", RichLog)
-        action = parts[1].lower() if len(parts) > 1 else ""
+        if len(parts) < 2:
+            log.write("[yellow]Usage: note list|create|view|append|delete|rename|search|export|import[/]")
+            return
+        action = parts[1].lower()
 
-        if action == "list":
-            notes = self.vault.list_notes()
-            if not notes:
-                log.write("[gray]No notes found.[/]")
-                return
-            log.write("[bold]Notes:[/]")
-            for note_id, meta in notes.items():
-                log.write(f"• {escape(meta['title'])} ({note_id[:8]})")
+        vault = self.vault
+        if not vault:
+            log.write("[red]Vault not available.[/]")
             return
 
-        if action == "create":
-            if len(parts) < 3:
-                log.write("[yellow]Usage: note create <title>[/]")
+        try:
+            # ----------------- LIST -----------------
+            if action == "list":
+                notes = vault.list_notes()
+                if not notes:
+                    log.write("[gray]No notes found.[/]")
+                    return
+                log.write("[bold]Notes:[/]")
+                for note_id, meta in notes.items():
+                    log.write(f"• {escape(meta['title'])} ({note_id[:8]})")
                 return
-            title = parts[2]
-            try:
-                self.vault.create_note(title, "")
+
+            # ----------------- CREATE -----------------
+            if action == "create":
+                if len(parts) < 3:
+                    log.write("[yellow]Usage: note create <title>[/]")
+                    return
+                title = parts[2]
+                vault.create_note(title, "")
                 log.write(f"[green]Created note:[/] {escape(title)}")
-            except VaultError:
-                log.write("[red]Failed to create note.[/]")
-            return
-
-        if action == "view":
-            if len(parts) < 3:
-                log.write("[yellow]Usage: note view <title>[/]")
                 return
-            title = parts[2]
-            try:
-                content = self.vault.read_note_by_title(title)
+
+            # ----------------- VIEW -----------------
+            if action == "view":
+                if len(parts) < 3:
+                    log.write("[yellow]Usage: note view <title>[/]")
+                    return
+                title = parts[2]
+                content = vault.read_note_by_title(title)
                 log.write(f"[bold]{escape(title)}[/]\n{escape(content)}")
-            except VaultError:
-                log.write("[red]Note not found.[/]")
-            return
-
-        if action == "append":
-            if len(parts) < 4:
-                log.write("[yellow]Usage: note append <title> <text>[/]")
                 return
-            title, text = parts[2], " ".join(parts[3:])
-            try:
-                old = self.vault.read_note_by_title(title)
-                new = old + "\n" + text
-                self.vault.update_note_by_title(title, new)
+
+            # ----------------- APPEND -----------------
+            if action == "append":
+                if len(parts) < 4:
+                    log.write("[yellow]Usage: note append <title> <text>[/]")
+                    return
+                title, text = parts[2], " ".join(parts[3:])
+                old = vault.read_note_by_title(title)
+                vault.update_note_by_title(title, old + "\n" + text)
                 log.write(f"[green]Appended to note:[/] {escape(title)}")
-            except VaultError:
-                log.write("[red]Note not found.[/]")
-            return
-
-        if action == "delete":
-            if len(parts) < 3:
-                log.write("[yellow]Usage: note delete <title>[/]")
                 return
-            title = parts[2]
-            try:
-                self.vault.delete_note_by_title(title)
-                log.write(f"[green]Deleted note:[/] {escape(title)}")
-            except VaultError:
-                log.write("[red]Note not found.[/]")
-            return
 
-        log.write("[yellow]Unknown note command.[/]")
+            # ----------------- DELETE -----------------
+            if action == "delete":
+                if len(parts) < 3:
+                    log.write("[yellow]Usage: note delete <title>[/]")
+                    return
+                title = parts[2]
+                vault.delete_note_by_title(title)
+                log.write(f"[green]Deleted note:[/] {escape(title)}")
+                return
+
+            # ----------------- RENAME -----------------
+            if action == "rename":
+                if len(parts) < 4:
+                    log.write("[yellow]Usage: note rename <old> <new>[/]")
+                    return
+                old, new = parts[2], parts[3]
+                content = vault.read_note_by_title(old)
+                vault.delete_note_by_title(old)
+                vault.create_note(new, content)
+                log.write(f"[green]Renamed note:[/] {escape(old)} → {escape(new)}")
+                return
+
+            # ----------------- SEARCH -----------------
+            if action == "search":
+                if len(parts) < 3:
+                    log.write("[yellow]Usage: note search <keyword>[/]")
+                    return
+                keyword = " ".join(parts[2:])
+                notes = vault.list_notes()
+                found = [meta['title'] for meta in notes.values() if keyword.lower() in vault.read_note_by_title(meta['title']).lower()]
+                if not found:
+                    log.write("[gray]No notes contain that keyword.[/]")
+                    return
+                log.write(f"[bold]Notes containing '{escape(keyword)}':[/]")
+                for t in found:
+                    log.write(f"• {escape(t)}")
+                return
+
+            # ----------------- EXPORT -----------------
+            if action == "export":
+                if len(parts) < 3:
+                    log.write("[yellow]Usage: note export <title>[/]")
+                    return
+                title = parts[2]
+                content = vault.read_note_by_title(title)
+                export_file = user_data_dir() / f"{title}.txt"
+                export_file.write_text(content, encoding="utf-8")
+                log.write(f"[green]Exported note:[/] {escape(title)} → {export_file}")
+                return
+
+            # ----------------- IMPORT -----------------
+            if action == "import":
+                if len(parts) < 3:
+                    log.write("[yellow]Usage: note import <file_path>[/]")
+                    return
+                path = Path(parts[2])
+                if not path.exists() or not path.is_file():
+                    log.write("[red]File not found.[/]")
+                    return
+                title = path.stem
+                content = path.read_text(encoding="utf-8")
+                vault.create_note(title, content)
+                log.write(f"[green]Imported note:[/] {escape(title)} from {path}")
+                return
+
+            log.write("[yellow]Unknown note command.[/]")
+
+        except VaultError as e:
+            log.write(f"[red]{str(e)}[/]")
+
+    # --------------------------------------------------
+    # PANTHAM ASCII
+    # --------------------------------------------------
+
+    def show_pantha_ascii(self) -> None:
+        log = self.query_one("#log", RichLog)
+        ascii_art = r"""
+(\ 
+\'\ 
+ \'\     __________  
+ / '|   ()_________)
+ \ '/    \ ~~~~~~~~ \
+   \       \ ~~~~~~   \
+   ==).      \__________\
+  (__)       ()__________)
+"""
+        commands = """                                                         
+
+[#a366ff]██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ███╗[/]
+[#a366ff]██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗ ████║[/]
+[#a366ff]██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║██╔████╔██║[/]
+[#a366ff]██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╔╝██║[/]
+[#a366ff]██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚═╝ ██║[/]
+[#a366ff]╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝[/]
+[#a366ff]░▒▓█▓▒░[/]  [#7c33ff]P A N T H A M   N O T E S  G R A N T E D[/]  [#a366ff]░▒▓█▓▒░[/]
+
+[bold #a366ff]PANTHAM COMMANDS[/]
+[#7c33ff]────────────────[/]
+
+[#7c33ff]note[/] [#ffffff]list[/]
+[#7c33ff]note[/] [#ffffff]create[/] [#888888]<title>[/]
+[#7c33ff]note[/] [#ffffff]view[/] [#888888]<title>[/]
+[#7c33ff]note[/] [#ffffff]append[/] [#888888]<title> <text>[/]
+[#7c33ff]note[/] [#ffffff]delete[/] [#888888]<title>[/]
+[#7c33ff]note[/] [#ffffff]rename[/] [#888888]<old> <new>[/]
+[#7c33ff]note[/] [#ffffff]search[/] [#888888]<keyword>[/]
+[#7c33ff]note[/] [#ffffff]export[/] [#888888]<title>[/]
+[#7c33ff]note[/] [#ffffff]import[/] [#888888]<file_path>[/]
+
+[#888888]CTRL+L → clear
+CTRL+C → quit
+"""
+        log.write(f"[bold #a366ff]{ascii_art}[/]")
+        log.write(commands)
 
     # --------------------------------------------------
     # STATUS
