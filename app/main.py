@@ -1,6 +1,7 @@
-# app/main.py
 from __future__ import annotations
+
 import os
+import sys
 import json
 import traceback
 from pathlib import Path
@@ -12,11 +13,15 @@ from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
 
-from .vault import Vault, VaultError, VaultLockedError
+# Ensure vault is importable even when running directly
+sys.path.append(str(Path(__file__).parent.resolve()))
+
+from vault import Vault, VaultError, VaultLockedError
 
 # --------------------------------------------------
 # USER DATA
 # --------------------------------------------------
+
 def user_data_dir() -> Path:
     path = Path.home() / ".pantha"
     path.mkdir(parents=True, exist_ok=True)
@@ -25,8 +30,9 @@ def user_data_dir() -> Path:
 HISTORY_FILE = user_data_dir() / "history.json"
 
 # --------------------------------------------------
-# PANATHA BANNER
+# BANNER
 # --------------------------------------------------
+
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
@@ -40,18 +46,39 @@ class PanthaBanner(Static):
         )
 
 # --------------------------------------------------
-# PANATHA TERMINAL APP
+# APP
 # --------------------------------------------------
+
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal v1.1.3"
+
     CSS = """
-    Screen { background: #020005; color: #eadcff; }
-    #log { background: #1a001f; color: #ffffff; }
-    Input { background: #120017; color: #ffffff; border: round #ffffff; }
-    #status_line { background: #120017; color: #00ff3c; }
-    Header { background: #1a001f; color: #ffffff; }
-    Footer { background: #1a001f; color: #ffffff; }
+    Screen {
+        background: #020005;
+        color: #eadcff;
+    }
+    #log {
+        background: #1a001f;
+        color: #ffffff;
+    }
+    Input {
+        background: #120017;
+        color: #ffffff;
+        border: round #ffffff;
+    }
+    #status_line {
+        background: #120017;
+        color: #00ff3c;
+    }
+    Header {
+        background: #1a001f;
+        color: #ffffff;
+    }
+    Footer {
+        background: #1a001f;
+        color: #ffffff;
+    }
     """
 
     status_text: reactive[str] = reactive("Ready")
@@ -62,13 +89,16 @@ class PanthaTerminal(App):
         self.vault: Vault | None = None
         self.command_history: list[str] = []
         self.history_index = -1
+
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
         self.hostname = os.environ.get("COMPUTERNAME") or "local"
+
         self.load_history()
 
     # --------------------------------------------------
     # UI
     # --------------------------------------------------
+
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield PanthaBanner()
@@ -85,8 +115,9 @@ class PanthaTerminal(App):
         self.focus_input()
 
     # --------------------------------------------------
-    # INPUT & HOTKEYS
+    # INPUT / HOTKEYS
     # --------------------------------------------------
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
         event.input.value = ""
@@ -101,6 +132,7 @@ class PanthaTerminal(App):
             self.update_status("Cleared")
             event.stop()
             return
+
         if event.key == "ctrl+c":
             self.exit()
 
@@ -122,6 +154,7 @@ class PanthaTerminal(App):
     # --------------------------------------------------
     # HISTORY
     # --------------------------------------------------
+
     def load_history(self) -> None:
         try:
             if HISTORY_FILE.exists():
@@ -140,6 +173,7 @@ class PanthaTerminal(App):
     # --------------------------------------------------
     # SAFE COMMAND EXECUTION
     # --------------------------------------------------
+
     def run_command_safe(self, cmd: str) -> None:
         log = self.query_one("#log", RichLog)
         log.write(f"[#7c33ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
@@ -155,14 +189,16 @@ class PanthaTerminal(App):
     # --------------------------------------------------
     # COMMAND ROUTER
     # --------------------------------------------------
+
     def run_command(self, cmd: str) -> None:
         log = self.query_one("#log", RichLog)
         parts = shlex_split(cmd)
         if not parts:
             return
+
         low = parts[0].lower()
 
-        # UNLOCK
+        # ----------------- VAULT UNLOCK -----------------
         if low == "unlock":
             if len(parts) < 2:
                 log.write("[yellow]Usage: unlock <password>[/]")
@@ -178,7 +214,7 @@ class PanthaTerminal(App):
                 log.write("[red]Failed to unlock vault.[/]")
             return
 
-        # NOTE COMMANDS
+        # ----------------- NOTE COMMANDS -----------------
         if low == "note":
             if not self.pantha_mode or not self.vault:
                 log.write("[red]Vault locked. Use unlock first.[/]")
@@ -186,10 +222,12 @@ class PanthaTerminal(App):
             self.handle_note_command(parts)
             return
 
-        # EXIT / CLEAR
+        # ----------------- EXIT -----------------
         if low in ("exit", "quit"):
             self.exit()
             return
+
+        # ----------------- CLEAR -----------------
         if low == "clear":
             log.clear()
             self.update_status("Cleared")
@@ -198,8 +236,9 @@ class PanthaTerminal(App):
         log.write(f"[red]Unknown command:[/] {escape(cmd)}")
 
     # --------------------------------------------------
-    # NOTE COMMAND HANDLER
+    # NOTE COMMANDS
     # --------------------------------------------------
+
     def handle_note_command(self, parts: list[str]):
         log = self.query_one("#log", RichLog)
         if len(parts) < 2:
@@ -212,18 +251,18 @@ class PanthaTerminal(App):
             return
 
         try:
-            # ---------------- LIST ----------------
+            # LIST
             if action == "list":
                 notes = vault.list_notes()
                 if not notes:
                     log.write("[gray]No notes found.[/]")
                     return
                 log.write("[bold]Notes:[/]")
-                for title in notes:
-                    log.write(f"• {escape(title)}")
+                for note_id, meta in notes.items():
+                    log.write(f"• {escape(meta['title'])} ({note_id[:8]})")
                 return
 
-            # ---------------- CREATE ----------------
+            # CREATE
             if action == "create":
                 if len(parts) < 3:
                     log.write("[yellow]Usage: note create <title>[/]")
@@ -233,7 +272,7 @@ class PanthaTerminal(App):
                 log.write(f"[green]Created note:[/] {escape(title)}")
                 return
 
-            # ---------------- VIEW ----------------
+            # VIEW
             if action == "view":
                 if len(parts) < 3:
                     log.write("[yellow]Usage: note view <title>[/]")
@@ -243,7 +282,7 @@ class PanthaTerminal(App):
                 log.write(f"[bold]{escape(title)}[/]\n{escape(content)}")
                 return
 
-            # ---------------- APPEND ----------------
+            # APPEND
             if action == "append":
                 if len(parts) < 4:
                     log.write("[yellow]Usage: note append <title> <text>[/]")
@@ -254,7 +293,7 @@ class PanthaTerminal(App):
                 log.write(f"[green]Appended to note:[/] {escape(title)}")
                 return
 
-            # ---------------- DELETE ----------------
+            # DELETE
             if action == "delete":
                 if len(parts) < 3:
                     log.write("[yellow]Usage: note delete <title>[/]")
@@ -264,7 +303,7 @@ class PanthaTerminal(App):
                 log.write(f"[green]Deleted note:[/] {escape(title)}")
                 return
 
-            # ---------------- RENAME ----------------
+            # RENAME
             if action == "rename":
                 if len(parts) < 4:
                     log.write("[yellow]Usage: note rename <old> <new>[/]")
@@ -276,14 +315,15 @@ class PanthaTerminal(App):
                 log.write(f"[green]Renamed note:[/] {escape(old)} → {escape(new)}")
                 return
 
-            # ---------------- SEARCH ----------------
+            # SEARCH
             if action == "search":
                 if len(parts) < 3:
                     log.write("[yellow]Usage: note search <keyword>[/]")
                     return
                 keyword = " ".join(parts[2:])
                 notes = vault.list_notes()
-                found = [t for t in notes if keyword.lower() in vault.read_note_by_title(t).lower()]
+                found = [meta['title'] for meta in notes.values()
+                         if keyword.lower() in vault.read_note_by_title(meta['title']).lower()]
                 if not found:
                     log.write("[gray]No notes contain that keyword.[/]")
                     return
@@ -292,7 +332,7 @@ class PanthaTerminal(App):
                     log.write(f"• {escape(t)}")
                 return
 
-            # ---------------- EXPORT ----------------
+            # EXPORT
             if action == "export":
                 if len(parts) < 3:
                     log.write("[yellow]Usage: note export <title>[/]")
@@ -304,7 +344,7 @@ class PanthaTerminal(App):
                 log.write(f"[green]Exported note:[/] {escape(title)} → {export_file}")
                 return
 
-            # ---------------- IMPORT ----------------
+            # IMPORT
             if action == "import":
                 if len(parts) < 3:
                     log.write("[yellow]Usage: note import <file_path>[/]")
@@ -325,8 +365,9 @@ class PanthaTerminal(App):
             log.write(f"[red]{str(e)}[/]")
 
     # --------------------------------------------------
-    # PANATHA ASCII & COMMANDS
+    # PANTHAM ASCII
     # --------------------------------------------------
+
     def show_pantha_ascii(self) -> None:
         log = self.query_one("#log", RichLog)
         ascii_art = r"""
@@ -340,35 +381,27 @@ class PanthaTerminal(App):
   (__)       ()__________)
 """
         commands = """
-[#a366ff]░▒▓█▓▒░[/]  [#7c33ff]PANTHAM MODE ACTIVE[/]  [#a366ff]░▒▓█▓▒░[/]
+[#a366ff]PANTHAM MODE ACTIVE[/]
 
 [bold #a366ff]COMMANDS[/]
-[#7c33ff]────────────────[/]
-
-[#7c33ff]note[/] [#ffffff]list[/]
-[#7c33ff]note[/] [#ffffff]create[/] [#888888]<title>[/]
-[#7c33ff]note[/] [#ffffff]view[/] [#888888]<title>[/]
-[#7c33ff]note[/] [#ffffff]append[/] [#888888]<title> <text>[/]
-[#7c33ff]note[/] [#ffffff]delete[/] [#888888]<title>[/]
-[#7c33ff]note[/] [#ffffff]rename[/] [#888888]<old> <new>[/]
-[#7c33ff]note[/] [#ffffff]search[/] [#888888]<keyword>[/]
-[#7c33ff]note[/] [#ffffff]export[/] [#888888]<title>[/]
-[#7c33ff]note[/] [#ffffff]import[/] [#888888]<file_path>[/]
-
-[#888888]CTRL+L → clear
-CTRL+C → quit
+note list|create|view|append|delete|rename|search|export|import
+unlock <password>
+clear
+exit|quit
 """
         log.write(f"[bold #a366ff]{ascii_art}[/]")
         log.write(commands)
 
     # --------------------------------------------------
-    # STATUS LINE
+    # STATUS
     # --------------------------------------------------
+
     def update_status(self, text: str) -> None:
         self.query_one("#status_line", Static).update(f"[#a366ff]STATUS:[/] {escape(text)}")
 
 # --------------------------------------------------
 # ENTRY
 # --------------------------------------------------
+
 if __name__ == "__main__":
     PanthaTerminal().run()
