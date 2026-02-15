@@ -30,17 +30,12 @@ HISTORY_FILE = user_data_dir() / "history.json"
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
-            r"""
-                   \    /\                                          
-                    )  ( ')                                          
-                    (  /  )                   (`\                    
-                     \(__)|                    ) )                  
-██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗                  
-██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗                  
-██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║        --  S E C U R E  N O T E  T E R M I N A L             
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║             ™ V1LE-CODE
-██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║                  
-╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝                                                               
+            r"""                                   
+██████   █████  ███    ██ ████████ ██   ██  █████                  
+██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██                   
+██████  ███████ ██ ██  ██    ██    ███████ ███████         --  S E C U R E  N O T E  T E R M I N A L             
+██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██              ™ V1LE-CODE
+██      ██   ██ ██   ████    ██    ██   ██ ██   ██                                                               
 """
         )
 
@@ -433,15 +428,15 @@ class PanthaTerminal(App):
 [bold #a366ff]PANTHAM COMMANDS[/]
 [#7c33ff]────────────────[/]
 
-[#7c33ff]note list[/]
-[#7c33ff]note create[/] [#888888]<title>[/]
-[#7c33ff]note view[/] [#888888]<title>[/]
-[#7c33ff]note append[/] [#888888]<title> <text>[/]
-[#7c33ff]note delete[/] [#888888]<title>[/]
-[#7c33ff]note rename[/] [#888888]<old> <new>[/]
-[#7c33ff]note search[/] [#888888]<keyword>[/]
-[#7c33ff]note export[/] [#888888]<title>[/]
-[#7c33ff]note import[/] [#888888]<file_path>[/]
+[#7c33ff]note[/] [#ffffff]list[/]
+[#7c33ff]note[/] [#ffffff]create[/] [#888888]<title>[/]
+[#7c33ff]note[/] [#ffffff]view[/] [#888888]<title>[/]
+[#7c33ff]note[/] [#ffffff]append[/] [#888888]<title> <text>[/]
+[#7c33ff]note[/] [#ffffff]delete[/] [#888888]<title>[/]
+[#7c33ff]note[/] [#ffffff]rename[/] [#888888]<old> <new>[/]
+[#7c33ff]note[/] [#ffffff]search[/] [#888888]<keyword>[/]
+[#7c33ff]note[/] [#ffffff]export[/] [#888888]<title>[/]
+[#7c33ff]note[/] [#ffffff]import[/] [#888888]<file_path>[/]
 
 [#888888]CTRL+L → clear
 CTRL+C → quit
