@@ -92,7 +92,6 @@ class Vault:
         meta = self._index.get(title)
         if not meta:
             raise VaultError("Note not found.")
-
         encrypted = self.storage.read_bytes(meta["file"])
         return self.crypto.decrypt(encrypted, self._password).decode()
 
@@ -101,7 +100,6 @@ class Vault:
         meta = self._index.get(title)
         if not meta:
             raise VaultError("Note not found.")
-
         encrypted = self.crypto.encrypt(new_content.encode(), self._password, aad=meta["id"].encode())
         self.storage.write_bytes(meta["file"], encrypted)
         meta["updated"] = time.time()
