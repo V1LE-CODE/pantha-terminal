@@ -5,7 +5,6 @@ import json
 import traceback
 from pathlib import Path
 from shlex import split as shlex_split
-from typing import List
 
 from textual.app import App, ComposeResult
 from textual.containers import ScrollableContainer
@@ -13,70 +12,78 @@ from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
 
-from vault import Vault
+from vault import Vault, VaultError, VaultLockedError
 
-
-# ============================================================
-# PATHS
-# ============================================================
+# --------------------------------------------------
+# USER DATA
+# --------------------------------------------------
 
 def user_data_dir() -> Path:
     path = Path.home() / ".pantha"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
-
 HISTORY_FILE = user_data_dir() / "history.json"
 
-
-# ============================================================
+# --------------------------------------------------
 # BANNER
-# ============================================================
+# --------------------------------------------------
 
 class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
-r"""
-██████╗  █████╗ ███╗   ██╗████████╗██╗  ██╗ █████╗
-██╔══██╗██╔══██╗████╗  ██║╚══██╔══╝██║  ██║██╔══██╗
-██████╔╝███████║██╔██╗ ██║   ██║   ███████║███████║
-██╔═══╝ ██╔══██║██║╚██╗██║   ██║   ██╔══██║██╔══██║
-██║     ██║  ██║██║ ╚████║   ██║   ██║  ██║██║  ██║
-╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
-
-        S E C U R E   E N C R Y P T E D   T E R M I N A L
+            r"""
+██████   █████  ███    ██ ████████ ██   ██  █████
+██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██
+██████  ███████ ██ ██  ██    ██    ███████ ███████ --  S E C U R E  N O T E  T E R M I N A L
+██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██ ™ V1LE-CODE
+██      ██   ██ ██   ████    ██    ██   ██ ██   ██
 """
         )
 
-
-# ============================================================
-# MAIN APP
-# ============================================================
+# --------------------------------------------------
+# APP
+# --------------------------------------------------
 
 class PanthaTerminal(App):
-
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Vault Encryption Edition"
-
-    status_text: reactive[str] = reactive("LOCKED")
+    SUB_TITLE = "Official Pantha Terminal v1.1.3"
 
     CSS = """
-    Screen { background: #020005; color: #eadcff; }
-    #log { background: #1a001f; color: #ffffff; }
-    Input { background: #120017; color: #ffffff; border: round #ffffff; }
-    #status_line { background: #120017; color: #00ff3c; }
-    Header, Footer { background: #1a001f; color: #ffffff; }
+    Screen {
+        background: #020005;
+        color: #eadcff;
+    }
+    #log {
+        background: #1a001f;
+        color: #ffffff;
+    }
+    Input {
+        background: #120017;
+        color: #ffffff;
+        border: round #ffffff;
+    }
+    #status_line {
+        background: #120017;
+        color: #00ff3c;
+    }
+    Header {
+        background: #1a001f;
+        color: #ffffff;
+    }
+    Footer {
+        background: #1a001f;
+        color: #ffffff;
+    }
     """
 
-    # --------------------------------------------------------
+    status_text: reactive[str] = reactive("Ready")
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-
-        self.vault: Vault | None = None
         self.pantha_mode = False
-
-        self.command_history: List[str] = []
+        self.vault: Vault | None = None
+        self.command_history: list[str] = []
         self.history_index = -1
 
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
@@ -84,47 +91,41 @@ class PanthaTerminal(App):
 
         self.load_history()
 
-    # ============================================================
+    # --------------------------------------------------
     # UI
-    # ============================================================
+    # --------------------------------------------------
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield PanthaBanner()
-
         with ScrollableContainer():
             yield RichLog(id="log", markup=True, wrap=True)
-
         yield Static("", id="status_line")
         yield Input(id="command_input", placeholder="Type a command...")
         yield Footer()
 
-    def on_mount(self):
+    def on_mount(self) -> None:
         log = self.query_one("#log", RichLog)
-        log.write("[bold #a366ff]Pantha Secure Terminal Online.[/]")
-        log.write("[#7c33ff]Type [bold]unlock <password>[/] to access vault.[/]")
-        self.update_status("LOCKED")
+        log.write("[bold #a366ff]Pantha Terminal Online.[/]")
+        log.write("[#7c33ff]Type [bold]unlock <password>[/] to start the vault.[/]")
         self.focus_input()
 
-    # ============================================================
-    # INPUT HANDLING
-    # ============================================================
+    # --------------------------------------------------
+    # INPUT / HOTKEYS
+    # --------------------------------------------------
 
-    def focus_input(self):
-        self.query_one("#command_input", Input).focus()
-
-    def on_input_submitted(self, event: Input.Submitted):
+    def on_input_submitted(self, event: Input.Submitted) -> None:
         cmd = event.value.strip()
         event.input.value = ""
         self.run_command_safe(cmd)
         self.focus_input()
 
-    def on_key(self, event):
+    def on_key(self, event) -> None:
         log = self.query_one("#log", RichLog)
 
         if event.key == "ctrl+l":
             log.clear()
-            self.update_status("CLEARED")
+            self.update_status("Cleared")
             event.stop()
             return
 
@@ -132,50 +133,46 @@ class PanthaTerminal(App):
             self.exit()
 
         inp = self.query_one("#command_input", Input)
-
         if event.key == "up" and self.command_history:
             self.history_index = max(0, self.history_index - 1)
             inp.value = self.command_history[self.history_index]
             inp.cursor_position = len(inp.value)
             event.stop()
-
         if event.key == "down" and self.command_history:
             self.history_index = min(len(self.command_history), self.history_index + 1)
-            if self.history_index >= len(self.command_history):
-                inp.value = ""
-            else:
-                inp.value = self.command_history[self.history_index]
+            inp.value = "" if self.history_index >= len(self.command_history) else self.command_history[self.history_index]
             inp.cursor_position = len(inp.value)
             event.stop()
 
-    # ============================================================
-    # HISTORY
-    # ============================================================
+    def focus_input(self) -> None:
+        self.query_one("#command_input", Input).focus()
 
-    def load_history(self):
+    # --------------------------------------------------
+    # HISTORY
+    # --------------------------------------------------
+
+    def load_history(self) -> None:
         try:
             if HISTORY_FILE.exists():
-                self.command_history = json.loads(HISTORY_FILE.read_text())
+                self.command_history = json.loads(HISTORY_FILE.read_text("utf-8"))
+            else:
+                self.command_history = []
         except Exception:
             self.command_history = []
 
-    def save_history(self):
-        try:
-            HISTORY_FILE.write_text(json.dumps(self.command_history, indent=2))
-        except Exception:
-            pass
+    def save_history(self) -> None:
+        HISTORY_FILE.write_text(
+            json.dumps(self.command_history, indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
 
-    # ============================================================
-    # SAFE EXECUTION
-    # ============================================================
+    # --------------------------------------------------
+    # SAFE COMMAND EXECUTION
+    # --------------------------------------------------
 
-    def run_command_safe(self, cmd: str):
+    def run_command_safe(self, cmd: str) -> None:
         log = self.query_one("#log", RichLog)
         log.write(f"[#7c33ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
-
-        if not cmd:
-            return
-
         try:
             self.command_history.append(cmd)
             self.history_index = len(self.command_history)
@@ -185,192 +182,134 @@ class PanthaTerminal(App):
             log.write("[bold red]INTERNAL ERROR[/]")
             log.write(escape(traceback.format_exc()))
 
-    # ============================================================
+    # --------------------------------------------------
     # COMMAND ROUTER
-    # ============================================================
+    # --------------------------------------------------
 
-    def run_command(self, cmd: str):
+    def run_command(self, cmd: str) -> None:
+        log = self.query_one("#log", RichLog)
         parts = shlex_split(cmd)
-        base = parts[0].lower()
-
-        if base == "unlock":
-            self.command_unlock(parts)
+        if not parts:
             return
 
-        if base == "lock":
-            self.command_lock()
+        low = parts[0].lower()
+
+        # ----------------- VAULT UNLOCK -----------------
+        if low == "unlock":
+            if len(parts) < 2:
+                log.write("[yellow]Usage: unlock <password>[/]")
+                return
+            self.vault = Vault(str(user_data_dir()))
+            try:
+                self.vault.unlock(parts[1])
+                self.pantha_mode = True
+                self.update_status("Vault Unlocked")
+                log.write("[green]Vault unlocked.[/]")
+            except VaultError:
+                log.write("[red]Failed to unlock vault.[/]")
             return
 
-        if base == "note":
-            self.command_note(parts)
+        # ----------------- NOTE COMMANDS -----------------
+        if low == "note":
+            if not self.pantha_mode or not self.vault:
+                log.write("[red]Vault locked. Use unlock first.[/]")
+                return
+            self.handle_note_command(parts)
             return
 
-        if base == "help":
-            self.command_help()
-            return
-
-        if base in ("exit", "quit"):
+        # ----------------- EXIT -----------------
+        if low in ("exit", "quit"):
             self.exit()
             return
 
-        if base == "clear":
-            self.query_one("#log", RichLog).clear()
+        # ----------------- CLEAR -----------------
+        if low == "clear":
+            log.clear()
+            self.update_status("Cleared")
             return
 
-        self.query_one("#log", RichLog).write(f"[red]Unknown command:[/] {escape(cmd)}")
+        log.write(f"[red]Unknown command:[/] {escape(cmd)}")
 
-    # ============================================================
-    # CORE COMMANDS
-    # ============================================================
+    # --------------------------------------------------
+    # NOTE COMMANDS
+    # --------------------------------------------------
 
-    def command_unlock(self, parts):
+    def handle_note_command(self, parts: list[str]):
         log = self.query_one("#log", RichLog)
+        action = parts[1].lower() if len(parts) > 1 else ""
 
-        if len(parts) < 2:
-            log.write("[yellow]Usage: unlock <password>[/]")
-            return
-
-        password = parts[1]
-
-        self.vault = Vault()
-        self.vault.unlock(password)
-
-        self.pantha_mode = True
-        self.update_status("UNLOCKED")
-        log.write("[green]Vault unlocked.[/]")
-
-    def command_lock(self):
-        if self.vault:
-            self.vault.lock()
-        self.vault = None
-        self.pantha_mode = False
-        self.update_status("LOCKED")
-        self.query_one("#log", RichLog).write("[gray]Vault locked.[/]")
-
-    def command_help(self):
-        log = self.query_one("#log", RichLog)
-        log.write("""
-[bold]CORE COMMANDS[/]
-unlock <password>
-lock
-note list
-note create <title>
-note view <title>
-note append <title> <text>
-note delete <title>
-note rename <old> <new>
-note search <keyword>
-note export <title>
-note import <path>
-clear
-exit
-""")
-
-    # ============================================================
-    # NOTE SYSTEM
-    # ============================================================
-
-    def require_vault(self) -> bool:
-        if not self.vault:
-            self.query_one("#log", RichLog).write(
-                "[red]Vault locked. Use unlock first.[/]"
-            )
-            return False
-        return True
-
-    def command_note(self, parts):
-        log = self.query_one("#log", RichLog)
-
-        if not self.require_vault():
-            return
-
-        if len(parts) < 2:
-            log.write("[yellow]Usage: note <action>[/]")
-            return
-
-        action = parts[1].lower()
-
-        try:
-
-            if action == "list":
-                notes = self.vault.list_notes()
-                if not notes:
-                    log.write("[gray]No notes.[/]")
-                    return
-                for n in notes:
-                    log.write(f"• {escape(n)}")
+        if action == "list":
+            notes = self.vault.list_notes()
+            if not notes:
+                log.write("[gray]No notes found.[/]")
                 return
+            log.write("[bold]Notes:[/]")
+            for note_id, meta in notes.items():
+                log.write(f"• {escape(meta['title'])} ({note_id[:8]})")
+            return
 
-            if action == "create":
-                title = parts[2]
-                self.vault.create_note(title)
-                log.write(f"[green]Created:[/] {escape(title)}")
+        if action == "create":
+            if len(parts) < 3:
+                log.write("[yellow]Usage: note create <title>[/]")
                 return
+            title = parts[2]
+            try:
+                self.vault.create_note(title, "")
+                log.write(f"[green]Created note:[/] {escape(title)}")
+            except VaultError:
+                log.write("[red]Failed to create note.[/]")
+            return
 
-            if action == "view":
-                title = parts[2]
-                content = self.vault.get_note(title)
+        if action == "view":
+            if len(parts) < 3:
+                log.write("[yellow]Usage: note view <title>[/]")
+                return
+            title = parts[2]
+            try:
+                content = self.vault.read_note_by_title(title)
                 log.write(f"[bold]{escape(title)}[/]\n{escape(content)}")
+            except VaultError:
+                log.write("[red]Note not found.[/]")
+            return
+
+        if action == "append":
+            if len(parts) < 4:
+                log.write("[yellow]Usage: note append <title> <text>[/]")
                 return
+            title, text = parts[2], " ".join(parts[3:])
+            try:
+                old = self.vault.read_note_by_title(title)
+                new = old + "\n" + text
+                self.vault.update_note_by_title(title, new)
+                log.write(f"[green]Appended to note:[/] {escape(title)}")
+            except VaultError:
+                log.write("[red]Note not found.[/]")
+            return
 
-            if action == "append":
-                title = parts[2]
-                text = " ".join(parts[3:])
-                current = self.vault.get_note(title)
-                self.vault.update_note(title, current + "\n" + text)
-                log.write(f"[green]Updated:[/] {escape(title)}")
+        if action == "delete":
+            if len(parts) < 3:
+                log.write("[yellow]Usage: note delete <title>[/]")
                 return
+            title = parts[2]
+            try:
+                self.vault.delete_note_by_title(title)
+                log.write(f"[green]Deleted note:[/] {escape(title)}")
+            except VaultError:
+                log.write("[red]Note not found.[/]")
+            return
 
-            if action == "delete":
-                title = parts[2]
-                self.vault.delete_note(title)
-                log.write(f"[green]Deleted:[/] {escape(title)}")
-                return
+        log.write("[yellow]Unknown note command.[/]")
 
-            if action == "rename":
-                old, new = parts[2], parts[3]
-                self.vault.rename_note(old, new)
-                log.write("[green]Renamed.[/]")
-                return
+    # --------------------------------------------------
+    # STATUS
+    # --------------------------------------------------
 
-            if action == "search":
-                keyword = " ".join(parts[2:])
-                results = self.vault.search(keyword)
-                if not results:
-                    log.write("[gray]No matches.[/]")
-                    return
-                for r in results:
-                    log.write(f"• {escape(r)}")
-                return
+    def update_status(self, text: str) -> None:
+        self.query_one("#status_line", Static).update(f"[#a366ff]STATUS:[/] {escape(text)}")
 
-            if action == "export":
-                title = parts[2]
-                path = user_data_dir() / f"{title}.txt"
-                self.vault.export_note(title, path)
-                log.write(f"[green]Exported:[/] {path}")
-                return
-
-            if action == "import":
-                path = Path(parts[2])
-                self.vault.import_note(path)
-                log.write(f"[green]Imported:[/] {path}")
-                return
-
-            log.write("[yellow]Unknown note command.[/]")
-
-        except Exception:
-            log.write("[red]Note operation failed.[/]")
-            log.write(escape(traceback.format_exc()))
-
-    # ============================================================
-
-    def update_status(self, text: str):
-        self.query_one("#status_line", Static).update(
-            f"[#a366ff]STATUS:[/] {escape(text)}"
-        )
-
-
-# ============================================================
+# --------------------------------------------------
+# ENTRY
+# --------------------------------------------------
 
 if __name__ == "__main__":
     PanthaTerminal().run()
