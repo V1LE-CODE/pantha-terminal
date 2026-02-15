@@ -17,7 +17,7 @@
 
 ## 🎯 Features
 
-![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/400ac2b40f2c19f2bb090eef8f12d358a1329549/assets/NEWUI.png)
+![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/aea0fe04190264870a759d6e208795178b511470/assets/UI.png)
 
 - **Pantham Mode** – unlock the full power of note commands.
 - **Terminal-style UI** with live command input and interactive log.
