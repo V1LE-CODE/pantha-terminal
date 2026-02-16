@@ -5,7 +5,7 @@
 
 #define MyAppVersion GetEnv("PANTHA_VERSION")
 #if MyAppVersion == ""
-  #define MyAppVersion "v1.1.3"
+  #define MyAppVersion "v1.2.3"
 #endif
 
 [Setup]
