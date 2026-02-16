@@ -1,21 +1,15 @@
 from __future__ import annotations
-
+import os
 import json
 import traceback
 from pathlib import Path
 from shlex import split as shlex_split
-from typing import List, Dict
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Input, Static, RichLog, TextArea
-from textual.containers import Horizontal, Vertical
+from textual.containers import ScrollableContainer
+from textual.widgets import Header, Footer, Input, Static, RichLog
 from textual.reactive import reactive
-from textual.timer import Timer
-
 from rich.markup import escape
-from rich.syntax import Syntax
-from rich.panel import Panel
-from rich.markdown import Markdown
 
 from vault import Vault, VaultError, VaultLockedError
 
@@ -24,87 +18,76 @@ from vault import Vault, VaultError, VaultLockedError
 # PATHS
 # =========================================================
 
-DATA_DIR = Path.home() / ".pantha"
-DATA_DIR.mkdir(exist_ok=True)
+def user_data_dir() -> Path:
+    path = Path.home() / ".pantha"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
+DATA_DIR = user_data_dir()
 HISTORY_FILE = DATA_DIR / "history.json"
 PIN_FILE = DATA_DIR / "pins.json"
-CURSOR_FILE = DATA_DIR / "cursor.json"
 
 
 # =========================================================
-# TAB MODEL
+# BANNER
 # =========================================================
 
-class EditorTab:
-    def __init__(self, title: str, content: str = ""):
-        self.title = title
-        self.content = content
-        self.undo: List[str] = []
-        self.redo: List[str] = []
-        self.cursor = 0
-        self.readonly = False
-        self.preview = False
-        self.syntax = False
+class PanthaBanner(Static):
+    def on_mount(self) -> None:
+        self.update(
+r"""
+██████   █████  ███    ██ ████████ ██   ██  █████
+██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██
+██████  ███████ ██ ██  ██    ██    ███████ ███████      --  ENCRYPTED & SECURE NOTE-BASED TERMINAL
+██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██                 BROUGHT TO YOU BY:  ™ V1LE-CODE
+██      ██   ██ ██   ████    ██    ██   ██ ██   ██
+"""
+        )
 
 
 # =========================================================
-# MAIN APP
+# TERMINAL APP
 # =========================================================
 
 class PanthaTerminal(App):
 
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Encrypted Notes"
+    SUB_TITLE = "Official Pantha Terminal v1.2.3"
 
     BINDINGS = [
-        ("ctrl+q", "quit", "Quit"),
         ("ctrl+l", "clear_log", "Clear"),
-        ("ctrl+s", "save", "Save"),
-        ("ctrl+z", "undo", "Undo"),
-        ("ctrl+y", "redo", "Redo"),
-        ("ctrl+t", "new_tab", "New Tab"),
-        ("ctrl+w", "close_tab", "Close Tab"),
-        ("ctrl+tab", "next_tab", "Next Tab"),
-        ("ctrl+shift+tab", "prev_tab", "Prev Tab"),
-        ("ctrl+p", "preview", "Preview"),
-        ("ctrl+e", "syntax", "Syntax"),
-        ("ctrl+r", "readonly", "Readonly"),
-        ("ctrl+h", "help", "Help"),
+        ("ctrl+q", "quit_app", "Quit"),
+        ("ctrl+i", "focus_input", "Focus Input"),
+        ("ctrl+n", "list_notes", "Notes"),
+        ("up", "history_prev", "Prev Cmd"),
+        ("down", "history_next", "Next Cmd"),
     ]
 
     CSS = """
-    Screen { background:#020005; color:#eadcff; }
-    #log { background:#14001a; height:1fr; }
-    Input { border:round #aa00ff; background:#120017; }
-    #status { height:1; background:#120017; color:#00ffd0; }
-    TextArea { background:#0a0010; }
+    Screen { background: #020005; color: #eadcff; }
+    #log { background: #1a001f; }
+    Input { background: #120017; border: round #aa00ff; }
+    #status_line { background: #120017; color: #00ff3c; }
+    Header { background: #1a001f; }
+    Footer { background: #1a001f; }
     """
 
     status_text: reactive[str] = reactive("Ready")
 
-    # =====================================================
-    # INIT
-    # =====================================================
+    # -----------------------------------------------------
 
     def __init__(self):
         super().__init__()
-
         self.vault: Vault | None = None
-        self.unlocked = False
-
-        self.history: List[str] = []
+        self.pantha_mode = False
+        self.command_history: list[str] = []
         self.history_index = -1
 
-        self.tabs: List[EditorTab] = []
-        self.current_tab = -1
+        self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
+        self.hostname = os.environ.get("COMPUTERNAME") or "local"
 
-        self.pins: set[str] = set()
-        self.cursor_memory: Dict[str, int] = {}
-
-        self.autosave_timer: Timer | None = None
-
-        self.load_state()
+        self.load_history()
+        self.load_pins()
 
     # =====================================================
     # UI
@@ -112,90 +95,119 @@ class PanthaTerminal(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-
-        with Horizontal():
-
-            with Vertical():
-                yield RichLog(id="log", wrap=True, markup=True)
-                yield Input(placeholder="command...", id="cmd")
-
-            yield TextArea(id="editor")
-
-        yield Static("STATUS: Ready", id="status")
+        yield PanthaBanner()
+        with ScrollableContainer():
+            yield RichLog(id="log", markup=True, wrap=True)
+        yield Static("", id="status_line")
+        yield Input(id="command_input", placeholder="Enter command...")
         yield Footer()
 
     def on_mount(self):
-        self.log("Pantha ready. Type help")
-        self.focus_cmd()
-        self.autosave_timer = self.set_interval(5, self.autosave)
+        log = self.query_one("#log", RichLog)
+        log.write("[bold #a366ff]Pantha Terminal Ready[/]")
+        log.write("Type [bold]help[/] for assistance")
+        self.focus_input()
+
+    def focus_input(self):
+        self.query_one("#command_input", Input).focus()
 
     # =====================================================
-    # STATE
+    # HOTKEY ACTIONS
     # =====================================================
 
-    def load_state(self):
+    def action_clear_log(self):
+        self.query_one("#log", RichLog).clear()
 
-        if HISTORY_FILE.exists():
-            self.history = json.loads(HISTORY_FILE.read_text())
+    def action_show_help(self):
+        self.run_command_safe("help")
 
-        if PIN_FILE.exists():
-            self.pins = set(json.loads(PIN_FILE.read_text()))
+    def action_quit_app(self):
+        self.exit()
 
-        if CURSOR_FILE.exists():
-            self.cursor_memory = json.loads(CURSOR_FILE.read_text())
+    def action_focus_input(self):
+        self.focus_input()
 
-    def save_state(self):
+    def action_show_pins(self):
+        if not self.pantha_mode:
+            self.log_write("Unlock vault first")
+            return
+        self.run_command_safe("note pinned")
 
-        HISTORY_FILE.write_text(json.dumps(self.history))
-        PIN_FILE.write_text(json.dumps(list(self.pins)))
-        CURSOR_FILE.write_text(json.dumps(self.cursor_memory))
+    def action_list_notes(self):
+        if not self.pantha_mode:
+            self.log_write("Unlock vault first")
+            return
+        self.run_command_safe("note list")
 
-    # =====================================================
-    # HELPERS
-    # =====================================================
+    def action_history_prev(self):
+        if not self.command_history:
+            return
+        self.history_index = max(0, self.history_index - 1)
+        self.query_one("#command_input", Input).value = self.command_history[self.history_index]
 
-    def log(self, text: str):
-        self.query_one("#log", RichLog).write(text)
-
-    def status(self, text: str):
-        self.query_one("#status", Static).update("STATUS: " + text)
-
-    def editor(self) -> TextArea:
-        return self.query_one("#editor", TextArea)
-
-    def current(self) -> EditorTab | None:
-        if 0 <= self.current_tab < len(self.tabs):
-            return self.tabs[self.current_tab]
-        return None
-
-    def focus_cmd(self):
-        self.query_one("#cmd", Input).focus()
+    def action_history_next(self):
+        if not self.command_history:
+            return
+        self.history_index = min(len(self.command_history)-1, self.history_index + 1)
+        self.query_one("#command_input", Input).value = self.command_history[self.history_index]
 
     # =====================================================
     # INPUT
     # =====================================================
 
-    def on_input_submitted(self, e: Input.Submitted):
-        cmd = e.value.strip()
-        e.input.value = ""
-
-        self.history.append(cmd)
-        self.save_state()
-
+    def on_input_submitted(self, event: Input.Submitted):
+        cmd = event.value.strip()
+        event.input.value = ""
+        self.history_index = len(self.command_history)
         self.run_command_safe(cmd)
+        self.focus_input()
+
+    # =====================================================
+    # HISTORY
+    # =====================================================
+
+    def load_history(self):
+        if HISTORY_FILE.exists():
+            self.command_history = json.loads(HISTORY_FILE.read_text())
+
+    def save_history(self):
+        HISTORY_FILE.write_text(json.dumps(self.command_history, indent=2))
+
+    # =====================================================
+    # PINS
+    # =====================================================
+
+    def load_pins(self):
+        if PIN_FILE.exists():
+            self.pins = set(json.loads(PIN_FILE.read_text()))
+        else:
+            self.pins = set()
+
+    def save_pins(self):
+        PIN_FILE.write_text(json.dumps(list(self.pins), indent=2))
+
+    # =====================================================
+    # LOG HELPER
+    # =====================================================
+
+    def log_write(self, text: str):
+        self.query_one("#log", RichLog).write(text)
 
     # =====================================================
     # COMMAND SAFE
     # =====================================================
 
     def run_command_safe(self, cmd: str):
-        self.log("> " + escape(cmd))
+        log = self.query_one("#log", RichLog)
+        log.write(f"[#7c33ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
 
         try:
+            self.command_history.append(cmd)
+            self.save_history()
             self.run_command(cmd)
         except Exception:
-            self.log("[red]ERROR[/]")
-            self.log(escape(traceback.format_exc()))
+            log.write("[bold red]INTERNAL ERROR[/]")
+            log.write(escape(traceback.format_exc()))
 
     # =====================================================
     # COMMAND ROUTER
@@ -203,61 +215,103 @@ class PanthaTerminal(App):
 
     def run_command(self, cmd: str):
 
+        log = self.query_one("#log", RichLog)
         parts = shlex_split(cmd)
         if not parts:
             return
 
         c = parts[0].lower()
 
-        # -------- HELP --------
+        # ---------------- HELP ----------------
         if c == "help":
-            self.log(
-                "Commands:\n"
-                "unlock <pass>\n"
-                "lock\n"
-                "note list\n"
-                "note create <title>\n"
-                "note open <title>\n"
-                "note delete <title>\n"
-                "pin <title>\n"
-                "unpin <title>\n"
-            )
+            log.write("""
+[bold #a366ff]COMMANDS[/]
+
+[#a366ff]unlock[/] [#888888]<pass>
+[#a366ff]lock[/]
+[#a366ff]passwd[/] [#888888]<old> <new>
+[#a366ff]status[/]
+
+[#a366ff]note[/] list
+[#a366ff]note[/] create [#888888]<title>[/]
+[#a366ff]note[/] view [#888888]<title>[/]
+[#a366ff]note[/] delete [#888888]<title>[/]
+[#a366ff]note[/] append [#888888]<title> <text>[/]
+[#a366ff]note[/] rename [#888888]<old> <new>[/]
+[#a366ff]note[/] search [#888888]<word>[/]
+[#a366ff]note[/] pin [#888888]<title>[/]
+[#a366ff]note[/] unpin [#888888]<title>[/]
+[#a366ff]note[/] pinned
+
+[#a366ff]history[/]
+[#a366ff]clear[/]
+[#a366ff]exit[/]
+
+[bold #a366ff]HOTKEYS[/]
+[#888888]Ctrl+L clear
+Ctrl+H help
+Ctrl+Q quit
+Ctrl+P pinned
+Ctrl+N list notes
+↑ ↓ history[/]
+""")
             return
 
-        # -------- UNLOCK --------
+        # ---------------- UNLOCK ----------------
         if c == "unlock":
+            if len(parts) < 2:
+                log.write("Usage: unlock <password>")
+                return
+
             self.vault = Vault(str(DATA_DIR))
-            self.vault.unlock(parts[1])
-            self.unlocked = True
-            self.status("Unlocked")
+            try:
+                self.vault.unlock(parts[1])
+                self.pantha_mode = True
+                log.write("[green]Vault unlocked[/]")
+                self.update_status("Unlocked")
+            except Exception:
+                log.write("[red]Unlock failed[/]")
             return
 
-        # -------- LOCK --------
+        # ---------------- LOCK ----------------
         if c == "lock":
             if self.vault:
                 self.vault.lock()
-            self.unlocked = False
-            self.status("Locked")
+                self.pantha_mode = False
+                log.write("Vault locked")
+                self.update_status("Locked")
             return
 
-        # -------- NOTES --------
+        # ---------------- STATUS ----------------
+        if c == "status":
+            log.write("[green]Vault unlocked[/]" if self.pantha_mode else "[yellow]Vault locked[/]")
+            return
+
+        # ---------------- NOTES ----------------
         if c == "note":
+            if not self.pantha_mode:
+                log.write("Unlock vault first")
+                return
             self.handle_note(parts)
             return
 
-        # -------- PIN --------
-        if c == "pin":
-            self.pins.add(parts[1])
-            self.save_state()
-            self.status("Pinned")
+        # ---------------- HISTORY ----------------
+        if c == "history":
+            for i, cmd in enumerate(self.command_history[-20:], 1):
+                log.write(f"{i}. {cmd}")
+            return
 
-        if c == "unpin":
-            self.pins.discard(parts[1])
-            self.save_state()
-            self.status("Unpinned")
+        # ---------------- CLEAR ----------------
+        if c == "clear":
+            log.clear()
+            return
 
-        else:
-            self.log("Unknown command")
+        # ---------------- EXIT ----------------
+        if c in ("exit", "quit"):
+            self.exit()
+            return
+
+        log.write("Unknown command")
 
     # =====================================================
     # NOTE COMMANDS
@@ -265,203 +319,107 @@ class PanthaTerminal(App):
 
     def handle_note(self, parts):
 
-        if not self.unlocked or not self.vault:
-            self.log("Unlock vault first")
+        log = self.query_one("#log", RichLog)
+
+        if len(parts) < 2:
             return
 
-        cmd = parts[1]
+        action = parts[1]
+        vault = self.vault
 
-        if cmd == "list":
+        try:
 
-            notes = self.vault.list_notes().values()
+            if action == "list":
+                notes = vault.list_notes()
+                for i, meta in notes.items():
+                    pin = "📌 " if meta["title"] in self.pins else ""
+                    log.write(f"{pin}{meta['title']}")
+                return
 
-            for n in sorted(notes, key=lambda x: x["title"]):
-                t = n["title"]
-                prefix = "[PIN] " if t in self.pins else ""
-                self.log(prefix + t)
+            if action == "create":
+                title = parts[2]
+                vault.create_note(title, "")
+                log.write("Created")
+                return
 
-        elif cmd == "create":
+            if action == "view":
+                log.write(vault.read_note_by_title(parts[2]))
+                return
 
-            title = parts[2]
-            self.vault.create_note(title, "")
+            if action == "delete":
+                title = parts[2]
+                vault.delete_note_by_title(title)
+                self.pins.discard(title)
+                self.save_pins()
+                log.write("Deleted")
+                return
 
-            self.tabs.append(EditorTab(title))
-            self.current_tab = len(self.tabs) - 1
-            self.refresh_editor()
+            if action == "append":
+                title = parts[2]
+                text = " ".join(parts[3:])
+                old = vault.read_note_by_title(title)
+                vault.update_note_by_title(title, old + "\n" + text)
+                log.write("Updated")
+                return
 
-        elif cmd == "open":
+            if action == "rename":
+                old, new = parts[2], parts[3]
+                text = vault.read_note_by_title(old)
+                vault.delete_note_by_title(old)
+                vault.create_note(new, text)
 
-            title = parts[2]
-            text = self.vault.read_note_by_title(title)
+                if old in self.pins:
+                    self.pins.remove(old)
+                    self.pins.add(new)
+                    self.save_pins()
 
-            tab = EditorTab(title, text)
-            tab.cursor = self.cursor_memory.get(title, 0)
+                log.write("Renamed")
+                return
 
-            self.tabs.append(tab)
-            self.current_tab = len(self.tabs) - 1
-            self.refresh_editor()
+            if action == "search":
+                word = " ".join(parts[2:])
+                notes = vault.list_notes()
+                for meta in notes.values():
+                    if word.lower() in vault.read_note_by_title(meta["title"]).lower():
+                        log.write(meta["title"])
+                return
 
-        elif cmd == "delete":
+            if action == "pin":
+                title = parts[2]
+                self.pins.add(title)
+                self.save_pins()
+                log.write("Pinned")
+                return
 
-            self.vault.delete_note_by_title(parts[2])
-            self.log("Deleted")
+            if action == "unpin":
+                title = parts[2]
+                self.pins.discard(title)
+                self.save_pins()
+                log.write("Unpinned")
+                return
 
-    # =====================================================
-    # TABS
-    # =====================================================
+            if action == "pinned":
+                if not self.pins:
+                    log.write("No pinned notes")
+                    return
+                for p in self.pins:
+                    log.write(f"📌 {p}")
+                return
 
-    def refresh_editor(self):
-
-        tab = self.current()
-        ed = self.editor()
-
-        if not tab:
-            ed.value = ""
-            return
-
-        ed.value = tab.content
-        ed.cursor_position = tab.cursor
-
-        self.status(f"Tab: {tab.title}")
-
-    def action_new_tab(self):
-        self.tabs.append(EditorTab("untitled"))
-        self.current_tab = len(self.tabs) - 1
-        self.refresh_editor()
-
-    def action_close_tab(self):
-        if self.current_tab >= 0:
-            self.tabs.pop(self.current_tab)
-            self.current_tab -= 1
-            self.refresh_editor()
-
-    def action_next_tab(self):
-        if self.tabs:
-            self.current_tab = (self.current_tab + 1) % len(self.tabs)
-            self.refresh_editor()
-
-    def action_prev_tab(self):
-        if self.tabs:
-            self.current_tab = (self.current_tab - 1) % len(self.tabs)
-            self.refresh_editor()
-
-    # =====================================================
-    # EDITOR CHANGE
-    # =====================================================
-
-    def on_text_area_changed(self, e: TextArea.Changed):
-
-        tab = self.current()
-        if not tab or tab.readonly:
-            return
-
-        tab.undo.append(tab.content)
-        tab.content = e.text
-        tab.cursor = e.cursor_position
-
-        self.cursor_memory[tab.title] = tab.cursor
+        except VaultError as e:
+            log.write(str(e))
 
     # =====================================================
-    # AUTOSAVE
+    # STATUS BAR
     # =====================================================
 
-    def autosave(self):
-
-        tab = self.current()
-
-        if not tab or not self.unlocked or not self.vault:
-            return
-
-        self.vault.update_note_by_title(tab.title, tab.content)
-        self.status("Autosaved")
-
-    # =====================================================
-    # ACTIONS
-    # =====================================================
-
-    def action_save(self):
-        tab = self.current()
-        if tab and self.vault:
-            self.vault.update_note_by_title(tab.title, tab.content)
-            self.status("Saved")
-
-    def action_clear_log(self):
-        self.query_one("#log", RichLog).clear()
-
-    def action_quit(self):
-        self.save_state()
-        self.exit()
-
-    def action_help(self):
-        self.run_command("help")
-
-    # -------- UNDO REDO --------
-
-    def action_undo(self):
-        tab = self.current()
-        if tab and tab.undo:
-            tab.redo.append(tab.content)
-            tab.content = tab.undo.pop()
-            self.refresh_editor()
-
-    def action_redo(self):
-        tab = self.current()
-        if tab and tab.redo:
-            tab.undo.append(tab.content)
-            tab.content = tab.redo.pop()
-            self.refresh_editor()
-
-    # -------- TOGGLES --------
-
-    def action_readonly(self):
-        tab = self.current()
-        if tab:
-            tab.readonly = not tab.readonly
-            self.status("Readonly ON" if tab.readonly else "Readonly OFF")
-
-    def action_preview(self):
-
-        tab = self.current()
-        if not tab:
-            return
-
-        for w in self.query("#preview"):
-            w.remove()
-
-        tab.preview = not tab.preview
-
-        if tab.preview:
-            self.editor().visible = False
-            self.mount(Static(Markdown(tab.content), id="preview"))
-        else:
-            self.editor().visible = True
-
-    def action_syntax(self):
-
-        tab = self.current()
-        if not tab:
-            return
-
-        for w in self.query("#syntax"):
-            w.remove()
-
-        tab.syntax = not tab.syntax
-
-        if tab.syntax:
-            code = Syntax(tab.content, "python", line_numbers=True)
-            self.mount(Static(Panel(code), id="syntax"))
-
-    # =====================================================
-    # EXIT SAVE
-    # =====================================================
-
-    def on_shutdown(self):
-        self.save_state()
+    def update_status(self, text: str):
+        self.query_one("#status_line", Static).update(f"STATUS: {text}")
 
 
-# =========================================================
-# RUN
-# =========================================================
+# =====================================================
+# ENTRY
+# =====================================================
 
 if __name__ == "__main__":
     PanthaTerminal().run()
