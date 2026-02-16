@@ -52,7 +52,7 @@ r"""
 class PanthaTerminal(App):
 
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Encrypted Notes Environment"
+    SUB_TITLE = "Official Pantha Terminal v1.2.3"
 
     CSS = """
     Screen { background: #020005; color: #eadcff; }
