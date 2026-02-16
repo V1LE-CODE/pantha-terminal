@@ -2,13 +2,12 @@ from __future__ import annotations
 import os
 import json
 import traceback
-import time
 from pathlib import Path
 from shlex import split as shlex_split
-from typing import Dict, List
+from typing import List
 
 from textual.app import App, ComposeResult
-from textual.containers import ScrollableContainer, Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Input, Static, RichLog, TextArea
 from textual.reactive import reactive
 from textual.timer import Timer
@@ -28,7 +27,6 @@ def user_data_dir() -> Path:
     path = Path.home() / ".pantha"
     path.mkdir(parents=True, exist_ok=True)
     return path
-
 
 DATA_DIR = user_data_dir()
 HISTORY_FILE = DATA_DIR / "history.json"
@@ -105,11 +103,8 @@ class PanthaTerminal(App):
 
     status_text: reactive[str] = reactive("Ready")
 
-    # -----------------------------------------------------
-
     def __init__(self):
         super().__init__()
-
         self.vault: Vault | None = None
         self.pantha_mode = False
 
@@ -118,8 +113,9 @@ class PanthaTerminal(App):
 
         self.tabs: List[EditorTab] = []
         self.current_tab = -1
-
         self.autosave_timer: Timer | None = None
+        self.cursor_memory: dict = {}
+        self.pins: set = set()
 
         self.load_history()
         self.load_pins()
@@ -132,13 +128,11 @@ class PanthaTerminal(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield PanthaBanner()
-
         with Horizontal():
             with Vertical():
                 yield RichLog(id="log", markup=True, wrap=True)
                 yield Input(id="command", placeholder="command...")
             yield TextArea(id="editor")
-
         yield Static("STATUS: Ready", id="status")
         yield Footer()
 
@@ -220,9 +214,7 @@ class PanthaTerminal(App):
 
     def autosave(self):
         tab = self.current()
-        if not tab or not self.pantha_mode:
-            return
-        if not self.vault:
+        if not tab or not self.pantha_mode or not self.vault:
             return
         try:
             self.vault.update_note_by_title(tab.title, tab.content)
@@ -236,7 +228,7 @@ class PanthaTerminal(App):
 
     def action_new_tab(self):
         self.tabs.append(EditorTab("untitled"))
-        self.current_tab = len(self.tabs)-1
+        self.current_tab = len(self.tabs) - 1
         self.refresh_editor()
 
     def action_close_tab(self):
@@ -311,7 +303,7 @@ class PanthaTerminal(App):
 
     def show_preview(self, tab: EditorTab):
         md = Markdown(tab.content)
-        self.query_one("#editor", TextArea).visible = False
+        self.editor().visible = False
         self.mount(Static(md, id="preview"))
 
     def action_toggle_readonly(self):
@@ -331,7 +323,7 @@ class PanthaTerminal(App):
                 self.refresh_editor()
 
     # =====================================================
-    # HOTKEY ACTIONS
+    # HOTKEYS
     # =====================================================
 
     def action_clear_log(self):
@@ -369,24 +361,21 @@ class PanthaTerminal(App):
     # =====================================================
 
     def run_command(self, cmd: str):
-
         parts = shlex_split(cmd)
         if not parts:
             return
-        c = parts[0]
+        c = parts[0].lower()
 
-        # HELP
         if c == "help":
-            self.log("""
-unlock <pass>
-lock
-note list/create/view/delete
-tab new/close
-""")
+            self.log(
+                "Commands: unlock <pass>, lock, note list/create/view/delete, tab new/close"
+            )
             return
 
-        # UNLOCK
         if c == "unlock":
+            if len(parts) < 2:
+                self.log("Usage: unlock <password>")
+                return
             self.vault = Vault(str(DATA_DIR))
             self.vault.unlock(parts[1])
             self.pantha_mode = True
@@ -400,12 +389,13 @@ tab new/close
                 self.status("Locked")
             return
 
-        # NOTES
         if c == "note":
             self.handle_note(parts)
             return
 
         if c == "tab":
+            if len(parts) < 2:
+                return
             if parts[1] == "new":
                 self.action_new_tab()
             elif parts[1] == "close":
@@ -419,36 +409,33 @@ tab new/close
     # =====================================================
 
     def handle_note(self, parts):
-
-        if not self.pantha_mode:
+        if not self.pantha_mode or not self.vault:
             self.log("Unlock vault first")
             return
-
-        vault = self.vault
 
         try:
             cmd = parts[1]
 
             if cmd == "list":
-                for meta in vault.list_notes().values():
+                for meta in self.vault.list_notes().values():
                     self.log(meta["title"])
 
             elif cmd == "create":
                 title = parts[2]
-                vault.create_note(title, "")
+                self.vault.create_note(title, "")
                 self.tabs.append(EditorTab(title))
-                self.current_tab = len(self.tabs)-1
+                self.current_tab = len(self.tabs) - 1
                 self.refresh_editor()
 
             elif cmd == "view":
                 title = parts[2]
-                text = vault.read_note_by_title(title)
+                text = self.vault.read_note_by_title(title)
                 self.tabs.append(EditorTab(title, text))
-                self.current_tab = len(self.tabs)-1
+                self.current_tab = len(self.tabs) - 1
                 self.refresh_editor()
 
             elif cmd == "delete":
-                vault.delete_note_by_title(parts[2])
+                self.vault.delete_note_by_title(parts[2])
                 self.log("Deleted")
 
         except VaultError as e:
