@@ -56,10 +56,8 @@ class PanthaTerminal(App):
 
     BINDINGS = [
         ("ctrl+l", "clear_log", "Clear"),
-        ("ctrl+h", "show_help", "Help"),
         ("ctrl+q", "quit_app", "Quit"),
         ("ctrl+i", "focus_input", "Focus Input"),
-        ("ctrl+p", "show_pins", "Pinned"),
         ("ctrl+n", "list_notes", "Notes"),
         ("up", "history_prev", "Prev Cmd"),
         ("down", "history_next", "Next Cmd"),
@@ -107,7 +105,7 @@ class PanthaTerminal(App):
     def on_mount(self):
         log = self.query_one("#log", RichLog)
         log.write("[bold #a366ff]Pantha Terminal Ready[/]")
-        log.write("Press [bold]Ctrl+H[/] for help")
+        log.write("Type [bold]help[/] for assistance")
         self.focus_input()
 
     def focus_input(self):
