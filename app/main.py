@@ -32,8 +32,8 @@ class PanthaBanner(Static):
             r"""
 ██████   █████  ███    ██ ████████ ██   ██  █████
 ██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██
-██████  ███████ ██ ██  ██    ██    ███████ ███████ --  SECURE NOTE TERMINAL
-██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██ ™ V1LE-CODE
+██████  ███████ ██ ██  ██    ██    ███████ ███████      --  SECURE NOTE TERMINAL
+██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██          ™ V1LE-CODE
 ██      ██   ██ ██   ████    ██    ██   ██ ██   ██
 """
         )
@@ -44,7 +44,7 @@ class PanthaBanner(Static):
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal v1.2"
+    SUB_TITLE = "Official Pantha Terminal v1.1.3"
 
     CSS = """
     Screen { background: #020005; color: #eadcff; }
@@ -360,18 +360,18 @@ class PanthaTerminal(App):
 [#a366ff]░▒▓█▓▒░[/] [#7c33ff]PANTHA NOTES ACTIVE[/] [#a366ff]░▒▓█▓▒░[/]
 
 Commands:
-note list
-note create <title>
-note view <title>
-note append <title> <text>
-note delete <title>
-note rename <old> <new>
-note search <keyword>
-note export <title>
-note import <file_path>
+[#a366ff]note[/] list
+[#a366ff]note[/] create [#888888]<title>[/]
+[#a366ff]note[/] view [#888888]<title>[/]
+[#a366ff]note[/] append [#888888]<title> <text>[/]
+[#a366ff]note[/] delete [#888888]<title>[/]
+[#a366ff]note[/] rename [#888888]<old> <new>[/]
+[#a366ff]note[/] search [#888888]<keyword>[/]
+[#a366ff]note[/] export [#888888]<title>[/]
+[#a366ff]note[/] import [#888888]<file_path>[/]
 
-CTRL+L → clear
-CTRL+C → quit
+[#888888]CTRL+L → clear
+CTRL+C → quit[/]
 """
         log.write(f"[bold #a366ff]{ascii_art}[/]")
         log.write(commands)
