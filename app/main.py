@@ -32,8 +32,8 @@ class PanthaBanner(Static):
             r"""
 ██████   █████  ███    ██ ████████ ██   ██  █████
 ██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██
-██████  ███████ ██ ██  ██    ██    ███████ ███████      --  SECURE NOTE TERMINAL
-██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██          ™ V1LE-CODE
+██████  ███████ ██ ██  ██    ██    ███████ ███████      --  ENCRYPTED & SECURE NOTE-BASED TERMINAL
+██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██                 BROUGHT TO YOU BY:  ™ V1LE-CODE
 ██      ██   ██ ██   ████    ██    ██   ██ ██   ██
 """
         )
@@ -44,7 +44,7 @@ class PanthaBanner(Static):
 
 class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal v1.1.3"
+    SUB_TITLE = "Official Pantha Terminal v1.2.3"
 
     CSS = """
     Screen { background: #020005; color: #eadcff; }
