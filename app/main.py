@@ -66,7 +66,7 @@ class PanthaTerminal(App):
     CSS = """
     Screen { background: #020005; color: #eadcff; }
     #log { background: #1a001f; }
-    Input { background: #120017; border: round #ffffff; }
+    Input { background: #120017; border: round #aa00ff; }
     #status_line { background: #120017; color: #00ff3c; }
     Header { background: #1a001f; }
     Footer { background: #1a001f; }
