@@ -54,6 +54,17 @@ class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal v1.2.3"
 
+    BINDINGS = [
+        ("ctrl+l", "clear_log", "Clear"),
+        ("ctrl+h", "show_help", "Help"),
+        ("ctrl+q", "quit_app", "Quit"),
+        ("ctrl+i", "focus_input", "Focus Input"),
+        ("ctrl+p", "show_pins", "Pinned"),
+        ("ctrl+n", "list_notes", "Notes"),
+        ("up", "history_prev", "Prev Cmd"),
+        ("down", "history_next", "Next Cmd"),
+    ]
+
     CSS = """
     Screen { background: #020005; color: #eadcff; }
     #log { background: #1a001f; }
@@ -96,11 +107,51 @@ class PanthaTerminal(App):
     def on_mount(self):
         log = self.query_one("#log", RichLog)
         log.write("[bold #a366ff]Pantha Terminal Ready[/]")
-        log.write("Type [bold]help[/] for commands")
+        log.write("Press [bold]Ctrl+H[/] for help")
         self.focus_input()
 
     def focus_input(self):
         self.query_one("#command_input", Input).focus()
+
+    # =====================================================
+    # HOTKEY ACTIONS
+    # =====================================================
+
+    def action_clear_log(self):
+        self.query_one("#log", RichLog).clear()
+
+    def action_show_help(self):
+        self.run_command_safe("help")
+
+    def action_quit_app(self):
+        self.exit()
+
+    def action_focus_input(self):
+        self.focus_input()
+
+    def action_show_pins(self):
+        if not self.pantha_mode:
+            self.log_write("Unlock vault first")
+            return
+        self.run_command_safe("note pinned")
+
+    def action_list_notes(self):
+        if not self.pantha_mode:
+            self.log_write("Unlock vault first")
+            return
+        self.run_command_safe("note list")
+
+    def action_history_prev(self):
+        if not self.command_history:
+            return
+        self.history_index = max(0, self.history_index - 1)
+        self.query_one("#command_input", Input).value = self.command_history[self.history_index]
+
+    def action_history_next(self):
+        if not self.command_history:
+            return
+        self.history_index = min(len(self.command_history)-1, self.history_index + 1)
+        self.query_one("#command_input", Input).value = self.command_history[self.history_index]
 
     # =====================================================
     # INPUT
@@ -109,6 +160,7 @@ class PanthaTerminal(App):
     def on_input_submitted(self, event: Input.Submitted):
         cmd = event.value.strip()
         event.input.value = ""
+        self.history_index = len(self.command_history)
         self.run_command_safe(cmd)
         self.focus_input()
 
@@ -135,6 +187,13 @@ class PanthaTerminal(App):
 
     def save_pins(self):
         PIN_FILE.write_text(json.dumps(list(self.pins), indent=2))
+
+    # =====================================================
+    # LOG HELPER
+    # =====================================================
+
+    def log_write(self, text: str):
+        self.query_one("#log", RichLog).write(text)
 
     # =====================================================
     # COMMAND SAFE
@@ -170,26 +229,33 @@ class PanthaTerminal(App):
             log.write("""
 [bold #a366ff]COMMANDS[/]
 
-unlock <pass>
-lock
-passwd <old> <new>
-status
+[#a366ff]unlock[/] [#888888]<pass>
+[#a366ff]lock[/]
+[#a366ff]passwd[/] [#888888]<old> <new>
+[#a366ff]status[/]
 
-note list
-note create <title>
-note view <title>
-note delete <title>
-note append <title> <text>
-note rename <old> <new>
-note search <word>
+[#a366ff]note[/] list
+[#a366ff]note[/] create [#888888]<title>[/]
+[#a366ff]note[/] view [#888888]<title>[/]
+[#a366ff]note[/] delete [#888888]<title>[/]
+[#a366ff]note[/] append [#888888]<title> <text>[/]
+[#a366ff]note[/] rename [#888888]<old> <new>[/]
+[#a366ff]note[/] search [#888888]<word>[/]
+[#a366ff]note[/] pin [#888888]<title>[/]
+[#a366ff]note[/] unpin [#888888]<title>[/]
+[#a366ff]note[/] pinned
 
-note pin <title>
-note unpin <title>
-note pinned
+[#a366ff]history[/]
+[#a366ff]clear[/]
+[#a366ff]exit[/]
 
-history
-clear
-exit
+[bold #a366ff]HOTKEYS[/]
+[#888888]Ctrl+L clear
+Ctrl+H help
+Ctrl+Q quit
+Ctrl+P pinned
+Ctrl+N list notes
+↑ ↓ history[/]
 """)
             return
 
@@ -220,27 +286,7 @@ exit
 
         # ---------------- STATUS ----------------
         if c == "status":
-            if self.pantha_mode:
-                log.write("[green]Vault unlocked[/]")
-            else:
-                log.write("[yellow]Vault locked[/]")
-            return
-
-        # ---------------- PASSWD ----------------
-        if c == "passwd":
-            if not self.pantha_mode:
-                log.write("Unlock vault first")
-                return
-
-            if len(parts) < 3:
-                log.write("Usage: passwd <old> <new>")
-                return
-
-            try:
-                self.vault.unlock(parts[2])
-                log.write("[green]Password changed[/]")
-            except Exception:
-                log.write("[red]Failed[/]")
+            log.write("[green]Vault unlocked[/]" if self.pantha_mode else "[yellow]Vault locked[/]")
             return
 
         # ---------------- NOTES ----------------
@@ -285,7 +331,6 @@ exit
 
         try:
 
-            # -------- LIST --------
             if action == "list":
                 notes = vault.list_notes()
                 for i, meta in notes.items():
@@ -293,19 +338,16 @@ exit
                     log.write(f"{pin}{meta['title']}")
                 return
 
-            # -------- CREATE --------
             if action == "create":
                 title = parts[2]
                 vault.create_note(title, "")
                 log.write("Created")
                 return
 
-            # -------- VIEW --------
             if action == "view":
                 log.write(vault.read_note_by_title(parts[2]))
                 return
 
-            # -------- DELETE --------
             if action == "delete":
                 title = parts[2]
                 vault.delete_note_by_title(title)
@@ -314,7 +356,6 @@ exit
                 log.write("Deleted")
                 return
 
-            # -------- APPEND --------
             if action == "append":
                 title = parts[2]
                 text = " ".join(parts[3:])
@@ -323,7 +364,6 @@ exit
                 log.write("Updated")
                 return
 
-            # -------- RENAME --------
             if action == "rename":
                 old, new = parts[2], parts[3]
                 text = vault.read_note_by_title(old)
@@ -338,7 +378,6 @@ exit
                 log.write("Renamed")
                 return
 
-            # -------- SEARCH --------
             if action == "search":
                 word = " ".join(parts[2:])
                 notes = vault.list_notes()
@@ -347,7 +386,6 @@ exit
                         log.write(meta["title"])
                 return
 
-            # -------- PIN --------
             if action == "pin":
                 title = parts[2]
                 self.pins.add(title)
@@ -355,7 +393,6 @@ exit
                 log.write("Pinned")
                 return
 
-            # -------- UNPIN --------
             if action == "unpin":
                 title = parts[2]
                 self.pins.discard(title)
@@ -363,7 +400,6 @@ exit
                 log.write("Unpinned")
                 return
 
-            # -------- PINNED LIST --------
             if action == "pinned":
                 if not self.pins:
                     log.write("No pinned notes")
