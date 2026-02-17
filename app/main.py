@@ -1,10 +1,8 @@
 from __future__ import annotations
 import os
-import sys
 import json
 import time
 import uuid
-import getpass
 import traceback
 from pathlib import Path
 from shlex import split as shlex_split
@@ -34,7 +32,6 @@ PIN_FILE = DATA_DIR / "pins.json"
 # ASCII BANNER
 # =========================================================
 class PanthaBanner(Static):
-    """Displays Pantha Terminal ASCII banner on mount."""
     def on_mount(self) -> None:
         self.update(r"""
 ██████   █████  ███    ██ ████████ ██   ██  █████
@@ -48,7 +45,6 @@ class PanthaBanner(Static):
 # STATUS BAR
 # =========================================================
 class StatusBar(Static):
-    """Shows dynamic status messages."""
     def set(self, text: str):
         self.update(f" STATUS ▸ {text} ")
 
@@ -56,17 +52,8 @@ class StatusBar(Static):
 # TERMINAL APPLICATION
 # =========================================================
 class PanthaTerminal(App):
-    """
-    Pantha Terminal - Secure note-based terminal application
-    Features:
-    - Vault with AES-GCM or fallback encryption
-    - Notes create/read/update/delete
-    - Pinned notes
-    - Command history
-    - Hidden password input
-    """
 
-    SUB_TITLE = "Official Pantha Terminal v1.3.0"
+    SUB_TITLE = "Official Pantha Terminal v1.5.0"
     ENABLE_COMMAND_PALETTE = False
 
     CSS = """
@@ -89,13 +76,19 @@ class PanthaTerminal(App):
 
     status_text: reactive[str] = reactive("Ready")
 
+    # =====================================================
+    # INIT
+    # =====================================================
     def __init__(self):
         super().__init__()
-        self.vault: Optional[Vault] = None
-        self.pantha_mode: bool = False
+        self.vault: Vault = Vault(str(DATA_DIR))
+        self.pantha_mode = False
         self.command_history: list[str] = []
-        self.history_index: int = -1
+        self.history_index = -1
         self.pins: set[str] = set()
+        self.awaiting_password_input = False
+        self.awaiting_password_setup = False
+        self._first_pass: Optional[str] = None
 
         self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
         self.hostname = os.environ.get("COMPUTERNAME") or "local"
@@ -105,7 +98,7 @@ class PanthaTerminal(App):
         self.update_header()
 
     # =====================================================
-    # HEADER AND STATUS
+    # HEADER & STATUS
     # =====================================================
     def update_header(self):
         lock_icon = "🔓" if self.pantha_mode else "🔒"
@@ -126,133 +119,94 @@ class PanthaTerminal(App):
         yield StatusBar(id="statusbar")
 
     def on_mount(self):
-        log = self.query_one("#log", RichLog)
-        log.write("[bold #a366ff]Pantha Terminal Ready[/]")
-        log.write("Type [bold]help[/] for commands")
+        self.log = self.query_one("#log", RichLog)
+        self.input_widget = self.query_one("#command_input", Input)
         self.focus_input()
-        self.update_status("Ready")
+        self.show_password_prompt()
 
     def focus_input(self):
-        self.query_one("#command_input", Input).focus()
+        self.input_widget.focus()
 
     # =====================================================
-    # HISTORY MANAGEMENT
+    # PASSWORD PROMPT
     # =====================================================
-    def load_history(self):
-        if HISTORY_FILE.exists():
-            self.command_history = json.loads(HISTORY_FILE.read_text())
-
-    def save_history(self):
-        HISTORY_FILE.write_text(json.dumps(self.command_history, indent=2))
-
-    def load_pins(self):
-        if PIN_FILE.exists():
-            self.pins = set(json.loads(PIN_FILE.read_text()))
+    def show_password_prompt(self):
+        """Prompt user for password first"""
+        if not self.vault.has_password():
+            self.log.write("[bold yellow]No vault password set.[/]")
+            self.log.write("[bold yellow]Please create a new password:[/]")
+            self.awaiting_password_setup = True
         else:
-            self.pins = set()
+            self.log.write("[bold cyan]Enter vault password to unlock:[/]")
+            self.awaiting_password_input = True
 
-    def save_pins(self):
-        PIN_FILE.write_text(json.dumps(list(self.pins), indent=2))
-
-    # =====================================================
-    # INPUT HANDLING
-    # =====================================================
     def on_input_submitted(self, event: Input.Submitted):
-        cmd = event.value.strip()
+        text = event.value.strip()
         event.input.value = ""
-        self.history_index = len(self.command_history)
-        self.run_command_safe(cmd)
-        self.focus_input()
+        if self.awaiting_password_input:
+            try:
+                self.vault.unlock(text)
+                self.pantha_mode = True
+                self.update_header()
+                self.update_status("Vault Unlocked")
+                self.log.write("[green]Vault unlocked successfully![/]")
+                self.awaiting_password_input = False
+            except VaultError:
+                self.log.write("[red]Wrong password, try again.[/]")
+        elif self.awaiting_password_setup:
+            if not self._first_pass:
+                self._first_pass = text
+                self.log.write("[bold cyan]Confirm new password:[/]")
+            else:
+                if text != self._first_pass:
+                    self.log.write("[red]Passwords do not match. Try again.[/]")
+                    self._first_pass = None
+                else:
+                    self.vault.set_password(text)
+                    self.pantha_mode = True
+                    self.update_header()
+                    self.update_status("Vault Unlocked")
+                    self.log.write("[green]Vault password set and vault unlocked![/]")
+                    self.awaiting_password_setup = False
+                    self._first_pass = None
+        else:
+            if text:
+                self.command_history.append(text)
+                self.history_index = len(self.command_history)
+                self.run_command(text)
 
     # =====================================================
-    # COMMAND EXECUTION
-    # =====================================================
-    def run_command_safe(self, cmd: str):
-        log = self.query_one("#log", RichLog)
-        log.write(f"[#7c33ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
-        try:
-            if cmd:
-                self.command_history.append(cmd)
-                self.save_history()
-            self.run_command(cmd)
-        except Exception:
-            log.write("[bold red]INTERNAL ERROR[/]")
-            log.write(escape(traceback.format_exc()))
-
-    # =====================================================
-    # COMMAND ROUTER
+    # COMMAND HANDLING
     # =====================================================
     def run_command(self, cmd: str):
-        log = self.query_one("#log", RichLog)
         parts = shlex_split(cmd)
         if not parts:
             return
         c = parts[0].lower()
 
+        log = self.log
+        vault = self.vault
+
         # ---------------- HELP ----------------
         if c == "help":
-            log.write("""
-[bold #a366ff]COMMANDS[/]
-setpass      - Set new vault password (hidden input)
-unlock       - Unlock vault (hidden input)
-lock         - Lock vault
-status       - Show vault status
-note list    - List all notes
-note create <title>
-note view <title>
-note delete <title>
-note append <title> <text>
-note rename <old> <new>
-note pin <title>
-note unpin <title>
-note pinned
-search <query>
-history
-clear
-exit
-""")
+            log.write("[bold cyan]Commands:[/]")
+            log.write("note list | note create <title> | note view <title> | note delete <title>")
+            log.write("note append <title> <text> | note rename <old> <new> | note pin <title> | note unpin <title> | note pinned")
+            log.write("search <query> | history | clear | exit | lock | status")
             return
 
-        # ---------------- SET PASSWORD ----------------
-        if c == "setpass":
-            self.vault = Vault(str(DATA_DIR))
-            try:
-                password = getpass.getpass("Enter new vault password: ")
-                confirm = getpass.getpass("Confirm password: ")
-                if password != confirm:
-                    log.write("[red]Passwords do not match.[/]")
-                    return
-                self.vault.set_password(password)
-                self.pantha_mode = True
-                self.update_header()
-                log.write("[green]Vault password set! Vault unlocked.[/]")
-            except VaultError as e:
-                log.write(f"[red]{e}[/]")
-            return
-
-        # ---------------- UNLOCK ----------------
-        if c == "unlock":
-            self.vault = Vault(str(DATA_DIR))
-            if not self.vault.has_password():
-                log.write("[yellow]No vault password set. Use setpass command.[/]")
-                return
-            try:
-                password = getpass.getpass("Enter vault password: ")
-                self.vault.unlock(password)
-                self.pantha_mode = True
-                self.update_header()
-                log.write("[green]Vault unlocked[/]")
-            except VaultError:
-                log.write("[red]Unlock failed. Wrong password or vault corrupted.[/]")
+        # ---------------- EXIT ----------------
+        if c in ("exit", "quit"):
+            self.exit()
             return
 
         # ---------------- LOCK ----------------
         if c == "lock":
-            if self.vault:
-                self.vault.lock()
-                self.pantha_mode = False
-                self.update_header()
-                log.write("Vault locked")
+            vault.lock()
+            self.pantha_mode = False
+            self.update_header()
+            self.update_status("Locked")
+            log.write("[yellow]Vault locked[/]")
             return
 
         # ---------------- STATUS ----------------
@@ -263,18 +217,18 @@ exit
         # ---------------- NOTE COMMANDS ----------------
         if c == "note":
             if not self.pantha_mode:
-                log.write("Unlock vault first")
+                log.write("[red]Unlock vault first[/]")
                 return
             self.handle_note(parts)
             return
 
-        # ---------------- SEARCH NOTES ----------------
+        # ---------------- SEARCH ----------------
         if c == "search":
             if not self.pantha_mode:
-                log.write("Unlock vault first")
+                log.write("[red]Unlock vault first[/]")
                 return
             query = " ".join(parts[1:]).lower()
-            results = [meta['title'] for meta in self.vault.list_notes().values() if query in meta['title'].lower()]
+            results = [meta['title'] for meta in vault.list_notes().values() if query in meta['title'].lower()]
             if results:
                 for r in results:
                     pin = "📌 " if r in self.pins else ""
@@ -285,8 +239,8 @@ exit
 
         # ---------------- HISTORY ----------------
         if c == "history":
-            for i, cmd in enumerate(self.command_history[-50:], 1):
-                log.write(f"{i}. {cmd}")
+            for i, h in enumerate(self.command_history[-50:], 1):
+                log.write(f"{i}. {h}")
             return
 
         # ---------------- CLEAR ----------------
@@ -294,22 +248,18 @@ exit
             log.clear()
             return
 
-        # ---------------- EXIT ----------------
-        if c in ("exit", "quit"):
-            self.exit()
-            return
-
-        log.write("Unknown command")
+        log.write("[red]Unknown command[/]")
 
     # =====================================================
     # NOTE HANDLER
     # =====================================================
     def handle_note(self, parts):
-        log = self.query_one("#log", RichLog)
+        log = self.log
+        vault = self.vault
         if len(parts) < 2:
             return
         action = parts[1]
-        vault = self.vault
+
         try:
             if action == "list":
                 for meta in vault.list_notes().values():
@@ -318,7 +268,7 @@ exit
                 return
             if action == "create":
                 vault.create_note(parts[2], "")
-                log.write("Note created")
+                log.write("[green]Note created[/]")
                 return
             if action == "view":
                 log.write(vault.read_note_by_title(parts[2]))
@@ -327,14 +277,14 @@ exit
                 vault.delete_note_by_title(parts[2])
                 self.pins.discard(parts[2])
                 self.save_pins()
-                log.write("Note deleted")
+                log.write("[yellow]Note deleted[/]")
                 return
             if action == "append":
                 title = parts[2]
                 text = " ".join(parts[3:])
                 old = vault.read_note_by_title(title)
                 vault.update_note_by_title(title, old + "\n" + text)
-                log.write("Note updated")
+                log.write("[green]Note updated[/]")
                 return
             if action == "rename":
                 old, new = parts[2], parts[3]
@@ -345,17 +295,17 @@ exit
                     self.pins.discard(old)
                     self.pins.add(new)
                     self.save_pins()
-                log.write("Note renamed")
+                log.write("[green]Note renamed[/]")
                 return
             if action == "pin":
                 self.pins.add(parts[2])
                 self.save_pins()
-                log.write("Note pinned")
+                log.write("[green]Note pinned[/]")
                 return
             if action == "unpin":
                 self.pins.discard(parts[2])
                 self.save_pins()
-                log.write("Note unpinned")
+                log.write("[yellow]Note unpinned[/]")
                 return
             if action == "pinned":
                 for p in self.pins:
@@ -371,19 +321,19 @@ exit
         if not self.command_history:
             return
         self.history_index = max(0, self.history_index - 1)
-        self.query_one("#command_input", Input).value = self.command_history[self.history_index]
+        self.input_widget.value = self.command_history[self.history_index]
 
     def action_history_next(self):
         if not self.command_history:
             return
         self.history_index = min(len(self.command_history)-1, self.history_index + 1)
-        self.query_one("#command_input", Input).value = self.command_history[self.history_index]
+        self.input_widget.value = self.command_history[self.history_index]
 
     # =====================================================
     # HOTKEYS
     # =====================================================
     def action_clear_log(self):
-        self.query_one("#log", RichLog).clear()
+        self.log.clear()
 
     def action_quit_app(self):
         self.exit()
@@ -392,16 +342,33 @@ exit
         self.focus_input()
 
     def action_list_notes(self):
-        if not self.pantha_mode:
-            self.log_write("Unlock vault first")
-            return
-        self.run_command_safe("note list")
+        if self.pantha_mode:
+            self.run_command("note list")
+        else:
+            self.log.write("[red]Unlock vault first[/]")
 
     def action_search_notes(self):
-        if not self.pantha_mode:
-            self.log_write("Unlock vault first")
-            return
-        self.run_command_safe("search ")
+        if self.pantha_mode:
+            self.run_command("search ")
+        else:
+            self.log.write("[red]Unlock vault first[/]")
+
+    # =====================================================
+    # HISTORY & PIN FILES
+    # =====================================================
+    def load_history(self):
+        if HISTORY_FILE.exists():
+            self.command_history = json.loads(HISTORY_FILE.read_text())
+
+    def save_history(self):
+        HISTORY_FILE.write_text(json.dumps(self.command_history, indent=2))
+
+    def load_pins(self):
+        if PIN_FILE.exists():
+            self.pins = set(json.loads(PIN_FILE.read_text()))
+
+    def save_pins(self):
+        PIN_FILE.write_text(json.dumps(list(self.pins), indent=2))
 
 # =====================================================
 # ENTRY POINT
