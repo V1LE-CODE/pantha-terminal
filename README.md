@@ -43,7 +43,7 @@
 - Once Latest Version Installed Run Pantha-Setup-v#.#.#
 - After Setup Is Complete Run Pantha Terminal
 
-### 👨‍💻 PANTHAM Note Commands!!
+### 👨‍💻 Pantha Note Commands!!
 
 ```bash
 PANTHAM COMMANDS
