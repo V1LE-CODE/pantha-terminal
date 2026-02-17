@@ -46,7 +46,7 @@ r"""
 
 
 # =========================================================
-# STATUS BAR
+# CUSTOM STATUS BAR
 # =========================================================
 
 class StatusBar(Static):
@@ -60,7 +60,9 @@ class StatusBar(Static):
 
 class PanthaTerminal(App):
 
+    TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal v1.2.3"
+
     ENABLE_COMMAND_PALETTE = False
 
     CSS = """
@@ -116,17 +118,6 @@ class PanthaTerminal(App):
 
         self.load_history()
         self.load_pins()
-
-        # initial header state
-        self.update_header()
-
-    # =====================================================
-    # HEADER INDICATOR
-    # =====================================================
-
-    def update_header(self):
-        lock_icon = "🔓" if self.pantha_mode else "🔒"
-        self.title = f"{lock_icon} Pantha Terminal"
 
     # =====================================================
     # BLOCK PALETTE
@@ -289,7 +280,6 @@ exit
 """)
             return
 
-        # ---------- UNLOCK ----------
         if c == "unlock":
             if len(parts) < 2:
                 log.write("Usage: unlock <password>")
@@ -298,7 +288,6 @@ exit
             try:
                 self.vault.unlock(parts[1])
                 self.pantha_mode = True
-                self.update_header()
                 log.write("[green]Vault unlocked[/]")
                 self.update_status("Vault Unlocked")
             except Exception:
@@ -306,22 +295,18 @@ exit
                 self.update_status("Unlock Failed")
             return
 
-        # ---------- LOCK ----------
         if c == "lock":
             if self.vault:
                 self.vault.lock()
                 self.pantha_mode = False
-                self.update_header()
                 log.write("Vault locked")
                 self.update_status("Locked")
             return
 
-        # ---------- STATUS ----------
         if c == "status":
             log.write("[green]Unlocked[/]" if self.pantha_mode else "[yellow]Locked[/]")
             return
 
-        # ---------- NOTES ----------
         if c == "note":
             if not self.pantha_mode:
                 log.write("Unlock vault first")
@@ -329,18 +314,15 @@ exit
             self.handle_note(parts)
             return
 
-        # ---------- HISTORY ----------
         if c == "history":
             for i, cmd in enumerate(self.command_history[-20:], 1):
                 log.write(f"{i}. {cmd}")
             return
 
-        # ---------- CLEAR ----------
         if c == "clear":
             log.clear()
             return
 
-        # ---------- EXIT ----------
         if c in ("exit", "quit"):
             self.exit()
             return
