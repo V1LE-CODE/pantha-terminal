@@ -54,9 +54,11 @@ class PanthaTerminal(App):
     TITLE = "Pantha Terminal"
     SUB_TITLE = "Official Pantha Terminal v1.2.3"
 
+    DEFAULT_BINDINGS = False
+    
     # 🔥 disables ctrl+p palette
     COMMAND_PALETTE = False
-
+    
     BINDINGS = [
         ("ctrl+l", "clear_log", "Clear"),
         ("ctrl+q", "quit_app", "Quit"),
@@ -76,6 +78,8 @@ class PanthaTerminal(App):
     """
 
     status_text: reactive[str] = reactive("Ready")
+
+    # -----------------------------------------------------
 
     def __init__(self):
         super().__init__()
@@ -119,11 +123,20 @@ class PanthaTerminal(App):
     def action_clear_log(self):
         self.query_one("#log", RichLog).clear()
 
+    def action_show_help(self):
+        self.run_command_safe("help")
+
     def action_quit_app(self):
         self.exit()
 
     def action_focus_input(self):
         self.focus_input()
+
+    def action_show_pins(self):
+        if not self.pantha_mode:
+            self.log_write("Unlock vault first")
+            return
+        self.run_command_safe("note pinned")
 
     def action_list_notes(self):
         if not self.pantha_mode:
@@ -179,7 +192,7 @@ class PanthaTerminal(App):
         PIN_FILE.write_text(json.dumps(list(self.pins), indent=2))
 
     # =====================================================
-    # LOG
+    # LOG HELPER
     # =====================================================
 
     def log_write(self, text: str):
@@ -214,38 +227,42 @@ class PanthaTerminal(App):
 
         c = parts[0].lower()
 
+        # ---------------- HELP ----------------
         if c == "help":
             log.write("""
 [bold #a366ff]COMMANDS[/]
 
-unlock <pass>
-lock
-status
+[#a366ff]unlock[/] [#888888]<pass>
+[#a366ff]lock[/]
+[#a366ff]passwd[/] [#888888]<old> <new>
+[#a366ff]status[/]
 
-note list
-note create <title>
-note view <title>
-note delete <title>
-note append <title> <text>
-note rename <old> <new>
-note search <word>
-note pin <title>
-note unpin <title>
-note pinned
+[#a366ff]note[/] list
+[#a366ff]note[/] create [#888888]<title>[/]
+[#a366ff]note[/] view [#888888]<title>[/]
+[#a366ff]note[/] delete [#888888]<title>[/]
+[#a366ff]note[/] append [#888888]<title> <text>[/]
+[#a366ff]note[/] rename [#888888]<old> <new>[/]
+[#a366ff]note[/] search [#888888]<word>[/]
+[#a366ff]note[/] pin [#888888]<title>[/]
+[#a366ff]note[/] unpin [#888888]<title>[/]
+[#a366ff]note[/] pinned
 
-history
-clear
-exit
+[#a366ff]history[/]
+[#a366ff]clear[/]
+[#a366ff]exit[/]
 
 [bold #a366ff]HOTKEYS[/]
-Ctrl+L clear
+[#888888]Ctrl+L clear
+Ctrl+H help
 Ctrl+Q quit
-Ctrl+I focus
-Ctrl+N notes
-↑ ↓ history
+Ctrl+P pinned
+Ctrl+N list notes
+↑ ↓ history[/]
 """)
             return
 
+        # ---------------- UNLOCK ----------------
         if c == "unlock":
             if len(parts) < 2:
                 log.write("Usage: unlock <password>")
@@ -261,6 +278,7 @@ Ctrl+N notes
                 log.write("[red]Unlock failed[/]")
             return
 
+        # ---------------- LOCK ----------------
         if c == "lock":
             if self.vault:
                 self.vault.lock()
@@ -269,10 +287,12 @@ Ctrl+N notes
                 self.update_status("Locked")
             return
 
+        # ---------------- STATUS ----------------
         if c == "status":
             log.write("[green]Vault unlocked[/]" if self.pantha_mode else "[yellow]Vault locked[/]")
             return
 
+        # ---------------- NOTES ----------------
         if c == "note":
             if not self.pantha_mode:
                 log.write("Unlock vault first")
@@ -280,15 +300,18 @@ Ctrl+N notes
             self.handle_note(parts)
             return
 
+        # ---------------- HISTORY ----------------
         if c == "history":
             for i, cmd in enumerate(self.command_history[-20:], 1):
                 log.write(f"{i}. {cmd}")
             return
 
+        # ---------------- CLEAR ----------------
         if c == "clear":
             log.clear()
             return
 
+        # ---------------- EXIT ----------------
         if c in ("exit", "quit"):
             self.exit()
             return
