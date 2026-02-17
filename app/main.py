@@ -7,7 +7,7 @@ from shlex import split as shlex_split
 
 from textual.app import App, ComposeResult
 from textual.containers import ScrollableContainer
-from textual.widgets import Header, Footer, Input, Static, RichLog
+from textual.widgets import Header, Input, Static, RichLog
 from textual.reactive import reactive
 from rich.markup import escape
 
@@ -38,11 +38,20 @@ class PanthaBanner(Static):
 r"""
 ██████   █████  ███    ██ ████████ ██   ██  █████
 ██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██
-██████  ███████ ██ ██  ██    ██    ███████ ███████      --  ENCRYPTED & SECURE NOTE-BASED TERMINAL
-██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██                 BROUGHT TO YOU BY:  ™ V1LE-CODE
+██████  ███████ ██ ██  ██    ██    ███████ ███████      -- ENCRYPTED & SECURE NOTE TERMINAL
+██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██
 ██      ██   ██ ██   ████    ██    ██   ██ ██   ██
 """
         )
+
+
+# =========================================================
+# CUSTOM STATUS BAR
+# =========================================================
+
+class StatusBar(Static):
+    def set(self, text: str):
+        self.update(f" STATUS ▸ {text} ")
 
 
 # =========================================================
@@ -52,24 +61,43 @@ r"""
 class PanthaTerminal(App):
 
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal"
+    SUB_TITLE = "Secure Environment"
+
+    ENABLE_COMMAND_PALETTE = False
 
     CSS = """
-    Screen { background: #020005; color: #eadcff; }
-    #log { background: #1a001f; }
-    Input { background: #120017; border: round #aa00ff; }
-    #status_line { background: #120017; color: #00ff3c; }
-    Header { background: #1a001f; }
-    Footer { background: #1a001f; }
+    Screen {
+        background: #020005;
+        color: #eadcff;
+    }
+
+    Header {
+        background: #1a001f;
+    }
+
+    #log {
+        background: #1a001f;
+    }
+
+    Input {
+        background: #120017;
+        border: round #aa00ff;
+    }
+
+    #statusbar {
+        dock: bottom;
+        height: 1;
+        background: #120017;
+        color: #00ff9c;
+        content-align: left middle;
+    }
     """
 
-    # ---- YOUR HOTKEYS ONLY ----
     BINDINGS = [
         ("ctrl+l", "clear_log", "Clear"),
         ("ctrl+q", "quit_app", "Quit"),
         ("ctrl+i", "focus_input", "Focus"),
         ("ctrl+n", "list_notes", "Notes"),
-        ("ctrl+p", "noop", ""),   # override palette
         ("up", "history_prev", ""),
         ("down", "history_next", ""),
     ]
@@ -92,18 +120,15 @@ class PanthaTerminal(App):
         self.load_pins()
 
     # =====================================================
-    # DISABLE TEXTUAL PALETTE COMPLETELY
+    # BLOCK PALETTE
     # =====================================================
-
-    def action_command_palette(self):
-        pass
-
-    def action_noop(self):
-        pass
 
     def on_key(self, event):
         if event.key == "ctrl+p":
             event.stop()
+
+    def action_command_palette(self):
+        pass
 
     # =====================================================
     # UI
@@ -112,23 +137,25 @@ class PanthaTerminal(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield PanthaBanner()
+
         with ScrollableContainer():
             yield RichLog(id="log", markup=True, wrap=True)
-        yield Static("", id="status_line")
+
         yield Input(id="command_input", placeholder="Enter command...")
-        yield Footer()
+        yield StatusBar(id="statusbar")
 
     def on_mount(self):
         log = self.query_one("#log", RichLog)
         log.write("[bold #a366ff]Pantha Terminal Ready[/]")
-        log.write("Type [bold]help[/] for assistance")
+        log.write("Type [bold]help[/] for commands")
         self.focus_input()
+        self.update_status("Ready")
 
     def focus_input(self):
         self.query_one("#command_input", Input).focus()
 
     # =====================================================
-    # HOTKEY ACTIONS
+    # HOTKEYS
     # =====================================================
 
     def action_clear_log(self):
@@ -201,7 +228,7 @@ class PanthaTerminal(App):
         self.query_one("#log", RichLog).write(text)
 
     # =====================================================
-    # COMMAND SAFE
+    # SAFE EXEC
     # =====================================================
 
     def run_command_safe(self, cmd: str):
@@ -243,7 +270,6 @@ note view <title>
 note delete <title>
 note append <title> <text>
 note rename <old> <new>
-note search <word>
 note pin <title>
 note unpin <title>
 note pinned
@@ -263,9 +289,10 @@ exit
                 self.vault.unlock(parts[1])
                 self.pantha_mode = True
                 log.write("[green]Vault unlocked[/]")
-                self.update_status("Unlocked")
+                self.update_status("Vault Unlocked")
             except Exception:
                 log.write("[red]Unlock failed[/]")
+                self.update_status("Unlock Failed")
             return
 
         if c == "lock":
@@ -277,7 +304,7 @@ exit
             return
 
         if c == "status":
-            log.write("[green]Vault unlocked[/]" if self.pantha_mode else "[yellow]Vault locked[/]")
+            log.write("[green]Unlocked[/]" if self.pantha_mode else "[yellow]Locked[/]")
             return
 
         if c == "note":
@@ -377,11 +404,11 @@ exit
             log.write(str(e))
 
     # =====================================================
-    # STATUS
+    # STATUS BAR UPDATE
     # =====================================================
 
     def update_status(self, text: str):
-        self.query_one("#status_line", Static).update(f"STATUS: {text}")
+        self.query_one("#statusbar", StatusBar).set(text)
 
 
 # =====================================================
