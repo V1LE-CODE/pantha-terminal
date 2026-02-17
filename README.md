@@ -53,15 +53,22 @@ After Setup Is Complete Run Pantha Terminal
 ```bash
 PANTHAM COMMANDS
 ────────────────
-note list
-note create <title>
-note view <title>
-note write <title> <text>
-note delete <title>
-help
-CTRL+L → clear
-CTRL+C → quit
-pantham off
+unlock <password> - Unlock Note Vault
+passwd <old> <new> - Change Vault Password
+lock - Lock Vault
+status - Check Status
+note list - View Note List (Hotkey CTRL+N)
+note create <title> - Create A Encrypted Note
+note view <title> - View Created Note
+note append <title> <text> - Write In Note
+note delete <title> - Delete Note
+note rename <old> <new> - Rename Note
+note pin <title> - Pin Important Note
+note unpin <title> - Unpin Note
+note pinned - View Pinned Note
+help - Help To View All Commands
+CTRL+L → clear - Clear Terminal
+CTRL+C → quit - Quit App
 ```
 Would You Like To Help Make Pantha Better? Join  The V1LE-CODE Team :) Our Goal Is To Make The Best & Go-To Note Storer For Large commercial storing At The Price Of $0 Thats Right Free, Used By Companys & Home Computers
 ```bash
