@@ -38,8 +38,8 @@ class PanthaBanner(Static):
 r"""
 ██████   █████  ███    ██ ████████ ██   ██  █████
 ██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██
-██████  ███████ ██ ██  ██    ██    ███████ ███████      -- ENCRYPTED & SECURE NOTE TERMINAL
-██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██
+██████  ███████ ██ ██  ██    ██    ███████ ███████      --  ENCRYPTED & SECURE NOTE-BASED TERMINAL
+██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██                 BROUGHT TO YOU BY:  ™ V1LE-CODE
 ██      ██   ██ ██   ████    ██    ██   ██ ██   ██
 """
         )
@@ -61,7 +61,7 @@ class StatusBar(Static):
 class PanthaTerminal(App):
 
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Secure Environment"
+    SUB_TITLE = "Official Pantha Terminal v1.2.3"
 
     ENABLE_COMMAND_PALETTE = False
 
