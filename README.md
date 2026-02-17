@@ -40,13 +40,8 @@
 
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cb1255aba7d559f78fefa528da4edca19c7eb8b7/assets/SetupPath.png)
 
-Once Latest Version Installed Run Pantha-Setup-v#.#.#
-
-![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/c406c9fca1337b8e3d7374053b66abe4f07b5050/assets/PanthaSeutp.png)
-
-After Setup Is Complete Run Pantha Terminal
-
-- Python 3.11+
+- Once Latest Version Installed Run Pantha-Setup-v#.#.#
+- After Setup Is Complete Run Pantha Terminal
 
 ### 👨‍💻 PANTHAM Note Commands!!
 
