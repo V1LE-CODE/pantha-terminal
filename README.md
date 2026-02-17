@@ -28,16 +28,16 @@ It’s a *private* command console for your thoughts.
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cfc90208436171438f65e879c7933a3244d8e5ac/assets/icon.ico)
 ---
 
-- **Pantham Mode** – unlock the full power of note commands.
+- **Vault** – unlock the full power of note commands.
 - **Terminal-style UI** with live command input and interactive log.
-- **Persistent JSON notes** saved securely in `~/.pantha/notes.json`.
+- **Encrypted Notes** encrypted so only vault has access
 - **Rich ASCII banners** with a magical Pantham awakening animation.
 - **Command palette** with discoverable help.
 - **Keyboard shortcuts**:
   - `CTRL+L` → Clear output log
   - `CTRL+C` → Quit app
 - **Purple aesthetic** with fun and readable terminal colors.
-- **Interactive notes**: list, create, view, write, delete.
+- **Interactive notes**: list, create, view, append, delete.
 
 ---
 
