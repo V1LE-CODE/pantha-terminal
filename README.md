@@ -13,7 +13,7 @@
 
 ## 🎯 Features
 
-![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/aea0fe04190264870a759d6e208795178b511470/assets/UI.png)
+![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/55aa72ec5b51e46514cd7e7f31919286daea6cc9/assets/v1UI.png)
 
 ---
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cfc90208436171438f65e879c7933a3244d8e5ac/assets/icon.ico)
