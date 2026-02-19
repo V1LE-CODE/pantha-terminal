@@ -3,7 +3,7 @@
 Welcome! We appreciate your interest in contributing.
 
 ## Table of Contents
-- [Getting Started](#getting-started)
+- [Getting Started](https://github.com/V1LE-CODE/pantha-terminal/blob/main/README.md#-installation)
 - [Reporting Bugs](#reporting-bugs)
 - [Submitting Pull Requests](#submitting-pull-requests)
 
