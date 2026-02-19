@@ -3,7 +3,7 @@
 Welcome! We appreciate your interest in contributing.
 
 ## Bugs
-- [Reporting Bugs](https://github.com/orgs/V1LE-CODE/discussions)
+- [Reporting Bugs](https://github.com/orgs/V1LE-CODE/discussions/categories/bug-report)
 
 ## Getting Started
 - [Getting Started](https://github.com/V1LE-CODE/pantha-terminal/blob/main/README.md#-installation)
