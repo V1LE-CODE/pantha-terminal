@@ -258,25 +258,25 @@ class PanthaTerminal(App):
 
         if c == "help":
             log.write("""
-[bold #a366ff]COMMANDS[/]
+[bold #a366ff]COMMAND LIST[/]
 
-unlock <pass>
-lock
-status
+[#aa00ff]unlock[/] [#888888]<pass>[/]
+[#aa00ff]lock[/]
+[#aa00ff]status[/]
 
-note list
-note create <title>
-note view <title>
-note delete <title>
-note append <title> <text>
-note rename <old> <new>
-note pin <title>
-note unpin <title>
-note pinned
+[#aa00ff]note[/] list
+[#aa00ff]note[/] create [#888888]<title>[/]
+[#aa00ff]note[/] view [#888888]<title>[/]
+[#aa00ff]note[/] delete [#888888]<title>[/]
+[#aa00ff]note[/] append [#888888]<title> <text>[/]
+[#aa00ff]note[/] rename [#888888]<old> <new>[/]
+[#aa00ff]note[/] pin [#888888]<title>[/]
+[#aa00ff]note[/] unpin [#888888]<title>[/]
+[#aa00ff]note[/] pinned
 
-history
+[#888888]history
 clear
-exit
+exit[/]
 """)
             return
 
