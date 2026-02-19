@@ -61,7 +61,7 @@ class StatusBar(Static):
 class PanthaTerminal(App):
 
     TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha Terminal v1.2.3"
+    SUB_TITLE = "Official Pantha (BETA v1.2.3)"
 
     ENABLE_COMMAND_PALETTE = False
 
@@ -146,10 +146,10 @@ class PanthaTerminal(App):
 
     def on_mount(self):
         log = self.query_one("#log", RichLog)
-        log.write("[bold #a366ff]Pantha Terminal Ready[/]")
-        log.write("Type [bold]help[/] for commands")
+        log.write("[bold #a366ff]Pantha Encryption Online[/]")
+        log.write("Type [bold]help[/] For Command List")
         self.focus_input()
-        self.update_status("Ready")
+        self.update_status("Encryption Online")
 
     def focus_input(self):
         self.query_one("#command_input", Input).focus()
