@@ -1,4 +1,4 @@
-# Contributing to [Project Name]
+# Contributing to Pantha
 
 Welcome! We appreciate your interest in contributing.
 
