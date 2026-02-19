@@ -77,10 +77,10 @@ Active: missusv1le - Yarndi
 ```bash
 MIT LICENSE UNDER V1LE-CODE ALL RIGHTS RESERVED  
 ```
+![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cfc90208436171438f65e879c7933a3244d8e5ac/assets/icon.ico)
 
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/9bb344ec28a3ce71fd6e0c56e7a5d5473ba8c2e9/assets/V1LE-CODE.png)
 
 * Pantha Logo
 
-![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cfc90208436171438f65e879c7933a3244d8e5ac/assets/icon.ico)
 
