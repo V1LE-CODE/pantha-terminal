@@ -23,10 +23,6 @@ It’s a *private* command console for your thoughts.
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/55aa72ec5b51e46514cd7e7f31919286daea6cc9/assets/v1UI.png)
 
 ---
-## Inludes
-
-![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cfc90208436171438f65e879c7933a3244d8e5ac/assets/icon.ico)
----
 
 - **Vault** – unlock the full power of note commands.
 - **Terminal-style UI** with live command input and interactive log.
@@ -83,4 +79,8 @@ MIT LICENSE UNDER V1LE-CODE ALL RIGHTS RESERVED
 ```
 
 ![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/9bb344ec28a3ce71fd6e0c56e7a5d5473ba8c2e9/assets/V1LE-CODE.png)
+
+* Pantha Logo
+
+![Alt text](https://github.com/V1LE-CODE/pantha-terminal/blob/cfc90208436171438f65e879c7933a3244d8e5ac/assets/icon.ico)
 
