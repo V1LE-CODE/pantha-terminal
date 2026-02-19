@@ -2,13 +2,13 @@
 
 Welcome! We appreciate your interest in contributing.
 
-## Table of Contents
-- [Getting Started](https://github.com/V1LE-CODE/pantha-terminal/blob/main/README.md#-installation)
-- [Reporting Bugs](#reporting-bugs)
-- [Submitting Pull Requests](#submitting-pull-requests)
+## Bugs
+- [Reporting Bugs](v1le.code@atomicmail.io)
 
 ## Getting Started
-To get started, fork the repository and clone it locally.
+- [Getting Started](https://github.com/V1LE-CODE/pantha-terminal/blob/main/README.md#-installation)
+To get started, click this and make sure you download the latest version.
 
-## Reporting Bugs
-Please use the [issue template](.github/ISSUE_TEMPLATE.md) when reporting bugs.   
+## Contribute Helping Pantha By Joining The V1LE-CODE Team
+Pantha is an open-source project aimed to be a free encrypted note-based termnal made by our team V1LE-CODE, if you have any interest in join the team click here!
+- [Contact Team](v1le.code@atomicmail.io)
