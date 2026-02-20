@@ -4,8 +4,7 @@
 
 ---
 ![License](https://img.shields.io/badge/license-MIT-purple)
-![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)
-![Maintained](https://img.shields.io/badge/maintained-yes-blue) 
+![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white) 
 ![Platform](https://img.shields.io/badge/platform-Windows-blue) 
 ![Commits](https://img.shields.io/github/commit-activity/m/V1LE-CODE/pantha-terminal)
 ![GitHub stars](https://img.shields.io/github/stars/V1LE-CODE/pantha-terminal?style=social)
