@@ -7,10 +7,10 @@
 ![Build](https://img.shields.io/github/actions/workflow/status/V1LE-CODE/pantha-terminal/build.yml?label=build)
 ![GitHub stars](https://img.shields.io/github/stars/V1LE-CODE/pantha-terminal?style=social)
 ![Commits](https://img.shields.io/github/commit-activity/m/V1LE-CODE/pantha-terminal)
-![Downloads](https://img.shields.io/github/downloads/V1LE-CODE/pantha-terminal/total)
 ![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-purple) 
 ![Platform](https://img.shields.io/badge/platform-Windows-brightgreen) 
+![Downloads](https://img.shields.io/github/downloads/V1LE-CODE/pantha-terminal/total)
 ![Made With Love](https://img.shields.io/badge/made%20with-%E2%9D%A4-red)
 ---
 
