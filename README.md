@@ -6,8 +6,6 @@
 ![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)
 ![Build](https://img.shields.io/github/actions/workflow/status/V1LE-CODE/pantha-terminal/build.yml?label=build)
 ![GitHub stars](https://img.shields.io/github/stars/V1LE-CODE/pantha-terminal?style=social)
-![Last Commit](https://img.shields.io/github/last-commit/V1LE-CODE/pantha-terminal)
-![Contributors](https://img.shields.io/github/contributors/V1LE-CODE/pantha-terminal)
 ![Commits](https://img.shields.io/github/commit-activity/m/V1LE-CODE/pantha-terminal)
 ![Downloads](https://img.shields.io/github/downloads/V1LE-CODE/pantha-terminal/total)
 ![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen)
