@@ -4,9 +4,16 @@
 
 ---
 ![Python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-purple)
-![Platform](https://img.shields.io/badge/platform-Windows-brightgreen)
+![Build](https://img.shields.io/github/actions/workflow/status/V1LE-CODE/pantha-terminal/build.yml?label=build)
 ![GitHub stars](https://img.shields.io/github/stars/V1LE-CODE/pantha-terminal?style=social)
+![Last Commit](https://img.shields.io/github/last-commit/V1LE-CODE/pantha-terminal)
+![Contributors](https://img.shields.io/github/contributors/V1LE-CODE/pantha-terminal)
+![Commits](https://img.shields.io/github/commit-activity/m/V1LE-CODE/pantha-terminal)
+![Downloads](https://img.shields.io/github/downloads/V1LE-CODE/pantha-terminal/total)
+![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-purple) 
+![Platform](https://img.shields.io/badge/platform-Windows-brightgreen) 
+![Made With Love](https://img.shields.io/badge/made%20with-%E2%9D%A4-red)
 ---
 
 *Pantha Terminal* is a next-generation *encrypted* terminal workspace disguised as a minimalist command shell. Beneath its sleek neon-purple interface lives a hardened secure vault engine designed for private, local-first knowledge storage. Every note is *encrypted* on disk using strong key derivation and authenticated encryption, ensuring your data remains unreadable without your password. Even if files are copied or stolen, their contents stay protected.
