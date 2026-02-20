@@ -35,6 +35,8 @@ It’s a *private* command console for your thoughts.
 - **Keyboard shortcuts**:
   - `CTRL+L` → Clear output log
   - `CTRL+C` → Quit app
+  - `CTRL+N` → Note List
+  - `CTRL+I` → Enter Input
 - **Purple aesthetic** with fun and readable terminal colors.
 - **Interactive notes**: list, create, view, append, delete.
 
