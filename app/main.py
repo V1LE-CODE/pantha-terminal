@@ -19,7 +19,7 @@ from vault import Vault, VaultError
 # =========================================================
 
 def user_data_dir() -> Path:
-    path = Path.home() / ".pantha"
+    path = Path.home() / ".osiris"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -32,15 +32,16 @@ PIN_FILE = DATA_DIR / "pins.json"
 # ASCII BANNER
 # =========================================================
 
-class PanthaBanner(Static):
+class OsirisBanner(Static):
     def on_mount(self) -> None:
         self.update(
 r"""
-██████   █████  ███    ██ ████████ ██   ██  █████
-██   ██ ██   ██ ████   ██    ██    ██   ██ ██   ██
-██████  ███████ ██ ██  ██    ██    ███████ ███████      --  ENCRYPTED & SECURE NOTE-BASED TERMINAL
-██      ██   ██ ██  ██ ██    ██    ██   ██ ██   ██                 BROUGHT TO YOU BY:  ™ V1LE-CODE
-██      ██   ██ ██   ████    ██    ██   ██ ██   ██
+ ██████  ███████ ██ ██████  ██ ███████  ██████ ██      ██
+██    ██ ██      ██ ██   ██ ██ ██      ██      ██      ██
+██    ██ ███████ ██ ██████  ██ ███████ ██      ██      ██
+██    ██      ██ ██ ██   ██ ██      ██ ██      ██      ██
+ ██████  ███████ ██ ██   ██ ██ ███████  ██████ ███████ ██  --  ENCRYPTED & SECURE NOTE-BASED TERMINAL
+                                                                       Brought to you by: OSI™
 """
         )
 
@@ -58,37 +59,37 @@ class StatusBar(Static):
 # TERMINAL
 # =========================================================
 
-class PanthaTerminal(App):
+class OsirisCLI(App):
 
-    TITLE = "Pantha Terminal"
-    SUB_TITLE = "Official Pantha (BETA v1.2.3)"
+    TITLE = "OsirisCLI"
+    SUB_TITLE = "Official Osiris (BETA v1.2.3)"
 
     ENABLE_COMMAND_PALETTE = False
 
     CSS = """
     Screen {
-        background: #020005;
-        color: #eadcff;
+        background: #0a0500;
+        color: #ffe0b2;
     }
 
     Header {
-        background: #1a001f;
+        background: #1f0f00;
     }
 
     #log {
-        background: #1a001f;
+        background: #1f0f00;
     }
 
     Input {
-        background: #120017;
-        border: round #aa00ff;
+        background: #170b00;
+        border: round #ff8c00;
     }
 
     #statusbar {
         dock: bottom;
         height: 1;
-        background: #120017;
-        color: #00ff9c;
+        background: #170b00;
+        color: #ffcc80;
         content-align: left middle;
     }
     """
@@ -109,11 +110,11 @@ class PanthaTerminal(App):
     def __init__(self):
         super().__init__()
         self.vault: Vault | None = None
-        self.pantha_mode = False
+        self.osiris_mode = False
         self.command_history: list[str] = []
         self.history_index = -1
 
-        self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "pantha"
+        self.username = os.environ.get("USERNAME") or os.environ.get("USER") or "osiris"
         self.hostname = os.environ.get("COMPUTERNAME") or "local"
 
         self.load_history()
@@ -136,7 +137,7 @@ class PanthaTerminal(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        yield PanthaBanner()
+        yield OsirisBanner()
 
         with ScrollableContainer():
             yield RichLog(id="log", markup=True, wrap=True)
@@ -146,7 +147,7 @@ class PanthaTerminal(App):
 
     def on_mount(self):
         log = self.query_one("#log", RichLog)
-        log.write("[bold #a366ff]Pantha Encryption Online[/]")
+        log.write("[bold #ff8c00]Osiris Encryption Online[/]")
         log.write("Type [bold]help[/] For Command List")
         self.focus_input()
         self.update_status("Encryption Online")
@@ -168,7 +169,7 @@ class PanthaTerminal(App):
         self.focus_input()
 
     def action_list_notes(self):
-        if not self.pantha_mode:
+        if not self.osiris_mode:
             self.log_write("Unlock vault first")
             return
         self.run_command_safe("note list")
@@ -233,7 +234,7 @@ class PanthaTerminal(App):
 
     def run_command_safe(self, cmd: str):
         log = self.query_one("#log", RichLog)
-        log.write(f"[#7c33ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
+        log.write(f"[#ff7000]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
 
         try:
             self.command_history.append(cmd)
@@ -258,21 +259,21 @@ class PanthaTerminal(App):
 
         if c == "help":
             log.write("""
-[bold #a366ff]COMMAND LIST[/]
+[bold #ff8c00]COMMAND LIST[/]
 
-[#aa00ff]unlock[/] [#888888]<pass>[/]
-[#aa00ff]lock[/]
-[#aa00ff]status[/]
+[#ff7000]unlock[/] [#888888]<pass>[/]
+[#ff7000]lock[/]
+[#ff7000]status[/]
 
-[#aa00ff]note[/] list
-[#aa00ff]note[/] create [#888888]<title>[/]
-[#aa00ff]note[/] view [#888888]<title>[/]
-[#aa00ff]note[/] delete [#888888]<title>[/]
-[#aa00ff]note[/] append [#888888]<title> <text>[/]
-[#aa00ff]note[/] rename [#888888]<old> <new>[/]
-[#aa00ff]note[/] pin [#888888]<title>[/]
-[#aa00ff]note[/] unpin [#888888]<title>[/]
-[#aa00ff]note[/] pinned
+[#ff7000]note[/] list
+[#ff7000]note[/] create [#888888]<title>[/]
+[#ff7000]note[/] view [#888888]<title>[/]
+[#ff7000]note[/] delete [#888888]<title>[/]
+[#ff7000]note[/] append [#888888]<title> <text>[/]
+[#ff7000]note[/] rename [#888888]<old> <new>[/]
+[#ff7000]note[/] pin [#888888]<title>[/]
+[#ff7000]note[/] unpin [#888888]<title>[/]
+[#ff7000]note[/] pinned
 
 [#888888]history
 clear
@@ -287,7 +288,7 @@ exit[/]
             self.vault = Vault(str(DATA_DIR))
             try:
                 self.vault.unlock(parts[1])
-                self.pantha_mode = True
+                self.osiris_mode = True
                 log.write("[green]Vault unlocked[/]")
                 self.update_status("Vault Unlocked")
             except Exception:
@@ -298,17 +299,17 @@ exit[/]
         if c == "lock":
             if self.vault:
                 self.vault.lock()
-                self.pantha_mode = False
+                self.osiris_mode = False
                 log.write("Vault locked")
                 self.update_status("Locked")
             return
 
         if c == "status":
-            log.write("[green]Unlocked[/]" if self.pantha_mode else "[yellow]Locked[/]")
+            log.write("[green]Unlocked[/]" if self.osiris_mode else "[yellow]Locked[/]")
             return
 
         if c == "note":
-            if not self.pantha_mode:
+            if not self.osiris_mode:
                 log.write("Unlock vault first")
                 return
             self.handle_note(parts)
@@ -416,4 +417,4 @@ exit[/]
 # =====================================================
 
 if __name__ == "__main__":
-    PanthaTerminal().run()
+    OsirisCLI().run()
