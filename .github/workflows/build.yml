@@ -1,4 +1,4 @@
-name: Build Pantha Terminal (Windows)
+name: Build OsirisCLI (Windows)
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows Setup (PanthaSetup.exe)
+    name: Build Windows Setup (OsirisSetup.exe)
     runs-on: windows-latest
 
     steps:
@@ -26,7 +26,7 @@ jobs:
             $ver = "${{ github.ref_name }}"
           }
           Write-Host "Using version: $ver"
-          "PANTHA_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "OSIRIS_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -40,11 +40,11 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build PanthaTerminal (ONEDIR, console, icon embedded)
+      - name: Build OsirisCLI (ONEDIR, console, icon embedded)
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean `
-            --name "PanthaTerminal" `
+            --name "OsirisCLI" `
             --onedir `
             --console `
             --icon "assets/icon.ico" `
@@ -66,10 +66,10 @@ jobs:
       - name: Compile Windows Installer
         shell: pwsh
         run: |
-          iscc installer/pantha_setup.iss
+          iscc installer/osiris_setup.iss
 
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
         with:
-          name: PanthaSetup-Windows-${{ env.PANTHA_VERSION }}
+          name: OsirisSetup-Windows-${{ env.OSIRIS_VERSION }}
           path: installer_output/*.exe
