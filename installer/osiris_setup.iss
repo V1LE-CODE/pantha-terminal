@@ -1,7 +1,7 @@
-#define MyAppName "Pantha Terminal"
-#define MyAppExeName "PanthaTerminal.exe"
+#define MyAppName "OsirisCLI"
+#define MyAppExeName "OsirisCLI.exe"
 #define MyAppPublisher "V1LE-CODE"
-#define MyAppURL "https://github.com/V1LE-CODE/pantha-terminal"
+#define MyAppURL "https://github.com/V1LE-CODE/osiris-cli"
 
 #define MyAppVersion GetEnv("PANTHA_VERSION")
 #if MyAppVersion == ""
@@ -21,7 +21,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 
 OutputDir=..\installer_output
-OutputBaseFilename=PanthaSetup-Windows-{#MyAppVersion}
+OutputBaseFilename=OsirisSetup-Windows-{#MyAppVersion}
 
 Compression=lzma
 SolidCompression=yes
@@ -44,11 +44,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: unchecked
-Name: "startup"; Description: "Run Pantha Terminal when Windows starts"; Flags: unchecked
+Name: "startup"; Description: "Run OsirisCLI when Windows starts"; Flags: unchecked
 
 [Files]
 ; ★ ONEDIR build output
-Source: "..\dist\PanthaTerminal\*"; \
+Source: "..\dist\OsirisCLI\*"; \
   DestDir: "{app}"; \
   Flags: recursesubdirs createallsubdirs ignoreversion
 
