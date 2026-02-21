@@ -1,5 +1,5 @@
 """
-PANTHA CRYPTO ENGINE — ENTERPRISE EDITION
+OSI CRYPTION ENGINE — ENTERPRISE EDITION
 ==========================================
 
 Features:
@@ -46,7 +46,7 @@ from argon2.low_level import hash_secret_raw, Type
 # ============================================================
 
 VERSION = 2
-MAGIC = b"PANTHA2"
+MAGIC = b"OSIRIS2"
 
 SALT_SIZE = 16
 NONCE_SIZE = 12
@@ -59,15 +59,15 @@ CHUNK_SIZE = 64 * 1024  # 64KB streaming chunks
 # EXCEPTIONS
 # ============================================================
 
-class PanthaCryptoError(Exception):
+class OsirisCryptoError(Exception):
     pass
 
 
-class InvalidPasswordError(PanthaCryptoError):
+class InvalidPasswordError(OsirisCryptoError):
     pass
 
 
-class TamperDetectedError(PanthaCryptoError):
+class TamperDetectedError(OsirisCryptoError):
     pass
 
 
@@ -77,19 +77,19 @@ class TamperDetectedError(PanthaCryptoError):
 
 def validate_password_strength(password: str):
     if len(password) < 12:
-        raise PanthaCryptoError("Password must be at least 12 characters.")
+        raise OsirisCryptoError("Password must be at least 12 characters.")
 
     if not any(c.isupper() for c in password):
-        raise PanthaCryptoError("Password must include uppercase letter.")
+        raise OsirisCryptoError("Password must include uppercase letter.")
 
     if not any(c.islower() for c in password):
-        raise PanthaCryptoError("Password must include lowercase letter.")
+        raise OsirisCryptoError("Password must include lowercase letter.")
 
     if not any(c.isdigit() for c in password):
-        raise PanthaCryptoError("Password must include a digit.")
+        raise OsirisCryptoError("Password must include a digit.")
 
     if not any(not c.isalnum() for c in password):
-        raise PanthaCryptoError("Password must include special character.")
+        raise OsirisCryptoError("Password must include special character.")
 
 
 # ============================================================
@@ -129,7 +129,7 @@ class EncryptionMetadata:
 # CORE ENGINE
 # ============================================================
 
-class PanthaCrypto:
+class OsirisCrypto:
 
     # --------------------------------------------------------
     # RANDOM UTILITIES
@@ -294,7 +294,7 @@ class PanthaCrypto:
         offset += 4
 
         if version != VERSION:
-            raise PanthaCryptoError("Unsupported encryption version.")
+            raise OsirisCryptoError("Unsupported encryption version.")
 
         salt_len = struct.unpack(">I", data[offset:offset+4])[0]
         offset += 4
@@ -331,10 +331,10 @@ class PanthaCrypto:
 # ============================================================
 
 if __name__ == "__main__":
-    crypto = PanthaCrypto()
+    crypto = OsirisCrypto()
 
     password = "UltraSecurePassword!2026"
-    message = b"Pantha Enterprise Encryption Engine"
+    message = b"OSI Enterprise Encryption Engine"
 
     encrypted = crypto.encrypt(message, password)
     print("Encrypted length:", len(encrypted))
