@@ -1,4 +1,4 @@
-# Contributing to Pantha
+# Contributing to Osiris
 
 Welcome! We appreciate your interest in contributing.
 
