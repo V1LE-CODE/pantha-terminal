@@ -1,5 +1,5 @@
 """
-PANTHA STORAGE LAYER
+OSIRIS STORAGE LAYER
 ===================
 
 Handles safe disk persistence for encrypted data.
@@ -21,7 +21,7 @@ class StorageError(Exception):
 
 class Storage:
     """
-    Secure storage backend for Pantha.
+    Secure storage backend for Osiris.
     """
 
     def __init__(self, base_dir: str):
