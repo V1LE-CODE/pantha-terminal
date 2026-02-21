@@ -32,7 +32,7 @@ PIN_FILE = DATA_DIR / "pins.json"
 # ASCII BANNER
 # =========================================================
 
-class OsirisBanner(Static):
+class PanthaBanner(Static):
     def on_mount(self) -> None:
         self.update(
 r"""
@@ -41,7 +41,7 @@ r"""
 ██    ██ ███████ ██ ██████  ██ ███████ ██      ██      ██
 ██    ██      ██ ██ ██   ██ ██      ██ ██      ██      ██
  ██████  ███████ ██ ██   ██ ██ ███████  ██████ ███████ ██  --  ENCRYPTED & SECURE NOTE-BASED TERMINAL
-                                                                       Brought to you by: OSI™
+                                                                              Brought to you by: OSI™
 """
         )
 
@@ -62,34 +62,34 @@ class StatusBar(Static):
 class OsirisCLI(App):
 
     TITLE = "OsirisCLI"
-    SUB_TITLE = "Official Osiris (BETA v1.2.3)"
+    SUB_TITLE = "Official Pantha (BETA v1.2.3)"
 
     ENABLE_COMMAND_PALETTE = False
 
     CSS = """
     Screen {
-        background: #0a0500;
-        color: #ffe0b2;
+        background: #020005;
+        color: #eadcff;
     }
 
     Header {
-        background: #1f0f00;
+        background: #1a001f;
     }
 
     #log {
-        background: #1f0f00;
+        background: #1a001f;
     }
 
     Input {
-        background: #170b00;
-        border: round #ff8c00;
+        background: #120017;
+        border: round #aa00ff;
     }
 
     #statusbar {
         dock: bottom;
         height: 1;
-        background: #170b00;
-        color: #ffcc80;
+        background: #120017;
+        color: #00ff9c;
         content-align: left middle;
     }
     """
@@ -137,7 +137,7 @@ class OsirisCLI(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        yield OsirisBanner()
+        yield PanthaBanner()
 
         with ScrollableContainer():
             yield RichLog(id="log", markup=True, wrap=True)
@@ -147,7 +147,7 @@ class OsirisCLI(App):
 
     def on_mount(self):
         log = self.query_one("#log", RichLog)
-        log.write("[bold #ff8c00]Osiris Encryption Online[/]")
+        log.write("[bold #a366ff]Pantha Encryption Online[/]")
         log.write("Type [bold]help[/] For Command List")
         self.focus_input()
         self.update_status("Encryption Online")
@@ -234,7 +234,7 @@ class OsirisCLI(App):
 
     def run_command_safe(self, cmd: str):
         log = self.query_one("#log", RichLog)
-        log.write(f"[#ff7000]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
+        log.write(f"[#7c33ff]{self.username}@{self.hostname}[/] $ {escape(cmd)}")
 
         try:
             self.command_history.append(cmd)
@@ -259,21 +259,21 @@ class OsirisCLI(App):
 
         if c == "help":
             log.write("""
-[bold #ff8c00]COMMAND LIST[/]
+[bold #a366ff]COMMAND LIST[/]
 
-[#ff7000]unlock[/] [#888888]<pass>[/]
-[#ff7000]lock[/]
-[#ff7000]status[/]
+[#aa00ff]unlock[/] [#888888]<pass>[/]
+[#aa00ff]lock[/]
+[#aa00ff]status[/]
 
-[#ff7000]note[/] list
-[#ff7000]note[/] create [#888888]<title>[/]
-[#ff7000]note[/] view [#888888]<title>[/]
-[#ff7000]note[/] delete [#888888]<title>[/]
-[#ff7000]note[/] append [#888888]<title> <text>[/]
-[#ff7000]note[/] rename [#888888]<old> <new>[/]
-[#ff7000]note[/] pin [#888888]<title>[/]
-[#ff7000]note[/] unpin [#888888]<title>[/]
-[#ff7000]note[/] pinned
+[#aa00ff]note[/] list
+[#aa00ff]note[/] create [#888888]<title>[/]
+[#aa00ff]note[/] view [#888888]<title>[/]
+[#aa00ff]note[/] delete [#888888]<title>[/]
+[#aa00ff]note[/] append [#888888]<title> <text>[/]
+[#aa00ff]note[/] rename [#888888]<old> <new>[/]
+[#aa00ff]note[/] pin [#888888]<title>[/]
+[#aa00ff]note[/] unpin [#888888]<title>[/]
+[#aa00ff]note[/] pinned
 
 [#888888]history
 clear
@@ -417,4 +417,4 @@ exit[/]
 # =====================================================
 
 if __name__ == "__main__":
-    OsirisCLI().run()
+    PanthaTerminal().run()
