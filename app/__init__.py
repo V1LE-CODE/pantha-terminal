@@ -1,1 +1,1 @@
-# Pantha Terminal package
+# OsirisCLI package
