@@ -1,5 +1,5 @@
 """
-PANTHA VAULT — STABLE BUILD
+OSIRIS VAULT — STABLE BUILD
 ============================
 
 Secure encrypted vault storage engine.
