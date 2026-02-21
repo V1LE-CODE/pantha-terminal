@@ -1,9 +1,9 @@
 #define MyAppName "OsirisCLI"
 #define MyAppExeName "OsirisCLI.exe"
-#define MyAppPublisher "V1LE-CODE"
+#define MyAppPublisher "OSI"
 #define MyAppURL "https://github.com/V1LE-CODE/osiris-cli"
 
-#define MyAppVersion GetEnv("PANTHA_VERSION")
+#define MyAppVersion GetEnv("OSIRIS_VERSION")
 #if MyAppVersion == ""
   #define MyAppVersion "v1.2.3"
 #endif
