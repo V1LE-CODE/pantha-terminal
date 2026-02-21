@@ -41,7 +41,7 @@ r"""
 ██    ██ ███████ ██ ██████  ██ ███████ ██      ██      ██
 ██    ██      ██ ██ ██   ██ ██      ██ ██      ██      ██
  ██████  ███████ ██ ██   ██ ██ ███████  ██████ ███████ ██  --  ENCRYPTED & SECURE NOTE-BASED TERMINAL
-                                                                              Brought to you by: OSI™
+                                                                        Brought to you by: V1LE-CODE™
 """
         )
 
@@ -62,7 +62,7 @@ class StatusBar(Static):
 class OsirisCLI(App):
 
     TITLE = "OsirisCLI"
-    SUB_TITLE = "Official Pantha (BETA v1.2.3)"
+    SUB_TITLE = "Official Osiris (BETA v1.2.3)"
 
     ENABLE_COMMAND_PALETTE = False
 
@@ -147,7 +147,7 @@ class OsirisCLI(App):
 
     def on_mount(self):
         log = self.query_one("#log", RichLog)
-        log.write("[bold #a366ff]Pantha Encryption Online[/]")
+        log.write("[bold #a366ff]OSI Encryption Online[/]")
         log.write("Type [bold]help[/] For Command List")
         self.focus_input()
         self.update_status("Encryption Online")
@@ -417,4 +417,4 @@ exit[/]
 # =====================================================
 
 if __name__ == "__main__":
-    PanthaTerminal().run()
+    OsirisCLI().run()
